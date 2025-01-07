@@ -7,7 +7,7 @@ import { initializeFirestore } from "firebase/firestore";
 
 // Your actual Firebase config from the console:
 const firebaseConfig = {
-  apiKey: "***REMOVED***BlIryh--FiQ79FuXo07ByTIRHs0eL8DTo",
+  apiKey: "AIzaSyBlIryh--FiQ79FuXo07ByTIRHs0eL8DTo",
   authDomain: "loopbook-5b036.firebaseapp.com",
   projectId: "loopbook-5b036",
   storageBucket: "loopbook-5b036.firebasestorage.app",

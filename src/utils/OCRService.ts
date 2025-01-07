@@ -3,7 +3,7 @@ import axios from "axios";
 import * as FileSystem from "expo-file-system";
 import * as ImageManipulator from "expo-image-manipulator";
 
-const GOOGLE_VISION_API_KEY = "***REMOVED***DvHiLb--iPnOwv77RaYGl62KNtBspdeEk";
+const GOOGLE_VISION_API_KEY = "AIzaSyDvHiLb--iPnOwv77RaYGl62KNtBspdeEk";
 const GOOGLE_VISION_API_URL = `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`;
 
 export const OCRService = {
