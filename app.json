@@ -24,7 +24,6 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        // This line is crucial for background location usage on iOS:
         "NSLocationAlwaysUsageDescription": "This app needs access to your location in the background to track mileage automatically.",
         "NSLocationWhenInUseUsageDescription": "We need location to track mileage when the app is open.",
         "NSCameraUsageDescription": "This app requires camera access to scan receipts.",
@@ -32,13 +31,17 @@
       }
     },
     "android": {
-      // For background location, add this:
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "ACCESS_BACKGROUND_LOCATION"
       ]
+    },
+    "extra": {
+      "GOOGLE_API_KEY": "AIzaSyBlIryh--FiQ79FuXo07ByTIRHs0eL8DTo",
+      "FIREBASE_AUTH_DOMAIN": "loopbook-5b036.firebaseapp.com"
     }
   }
 }
+
