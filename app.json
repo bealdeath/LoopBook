@@ -5,7 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "newArchEnabled": true,
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "plugins": [
       [
         "expo-camera",
@@ -32,16 +36,30 @@
     },
     "android": {
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "ACCESS_BACKGROUND_LOCATION"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "extra": {
       "GOOGLE_API_KEY": "AIzaSyBlIryh--FiQ79FuXo07ByTIRHs0eL8DTo",
-      "FIREBASE_AUTH_DOMAIN": "loopbook-5b036.firebaseapp.com"
+      "FIREBASE_AUTH_DOMAIN": "loopbook-5b036.firebaseapp.com",
+      "eas": {
+        "projectId": "b204e6c1-3011-4716-a433-dd53b32b50b2"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/b204e6c1-3011-4716-a433-dd53b32b50b2"
     }
   }
 }
-

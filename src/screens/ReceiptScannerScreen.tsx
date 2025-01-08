@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+kimport React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Alert,
+  ScrollView,
 } from "react-native";
 import { useDispatch } from "react-redux";
 import * as ImagePicker from "expo-image-picker";
@@ -18,141 +19,146 @@ import { addReceipt } from "../redux/slices/receiptSlice";
 export default function ReceiptScannerScreen({ navigation }) {
   const dispatch = useDispatch();
 
-  const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<string[][]>([]); // Groups of images (multi-page receipts)
   const [isLoading, setIsLoading] = useState(false);
-  const [extractedDetails, setExtractedDetails] = useState<any>(null);
+  const [scannedReceipts, setScannedReceipts] = useState<any[]>([]); // Store extracted receipt data
+  const [currentProgress, setCurrentProgress] = useState<number>(0);
 
-  const pickImage = async () => {
+  const pickImages = async () => {
     try {
-      // Ask for permission
+      // Request media library permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission Denied", "We need gallery permissions.");
+        Alert.alert("Permission Denied", "We need gallery permissions to continue.");
         return;
       }
 
-      // Launch gallery
+      // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"], // 'images' is recognized
-        allowsEditing: true,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
         quality: 1,
       });
 
       if (!result.canceled && result.assets?.length) {
-        setImage(result.assets[0].uri);
-        setExtractedDetails(null);
+        const selectedImages = result.assets.map((asset) => asset.uri);
+        setImages((prev) => [...prev, selectedImages]); // Add new group of images
       }
     } catch (error) {
-      console.error("pickImage Error:", error);
+      console.error("Error picking images:", error);
     }
   };
 
-  const takePhoto = async () => {
-    try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permission Denied", "Camera permissions are required.");
-        return;
-      }
-
-      // Launch camera
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ["images"],
-        allowsEditing: true,
-        quality: 1,
-      });
-
-      if (!result.canceled && result.assets?.length) {
-        setImage(result.assets[0].uri);
-        setExtractedDetails(null);
-      }
-    } catch (error) {
-      console.error("takePhoto Error:", error);
-    }
-  };
-
-  const extractText = async () => {
-    if (!image) {
-      Alert.alert("Error", "Please select or capture an image first.");
+  const scanReceipts = async () => {
+    if (!images.length) {
+      Alert.alert("No Images", "Please select images first.");
       return;
     }
 
     setIsLoading(true);
-    setExtractedDetails(null);
+    setCurrentProgress(0);
+    setScannedReceipts([]);
 
     try {
-      const text = await OCRService.extractText(image);
-      const details = OCRService.categorizeAndExtractDetails(text);
-      setExtractedDetails(details);
+      const batchResults = await OCRService.extractTextBatch(images);
 
-      // Build a receipt object
-      const newReceipt = {
-        id: uuidv4(),
-        imageUri: image,
-        category: details.category,
-        amount: details.total,
-        date: new Date().toLocaleDateString(),
-        merchantName: details.merchantName,
-        purchaseDate: details.purchaseDate,
-      };
+      const receipts = batchResults.map((result, index) => {
+        const details = OCRService.categorizeAndExtractDetails(result.combinedText);
 
-      // Dispatch to Redux
-      dispatch(addReceipt(newReceipt));
+        // Create a new receipt object
+        return {
+          id: uuidv4(),
+          images: result.pages,
+          category: details.category,
+          amount: details.total,
+          date: new Date().toLocaleDateString(),
+          merchantName: details.merchantName,
+          purchaseDate: details.purchaseDate,
+        };
+      });
+
+      setScannedReceipts(receipts);
+
+      // Dispatch each receipt to Redux store
+      receipts.forEach((receipt) => dispatch(addReceipt(receipt)));
+
+      Alert.alert("Success", "Receipts scanned successfully!");
     } catch (error) {
-      console.error("OCR Error:", error);
-      Alert.alert("Error", "Failed to extract text from the image.");
+      console.error("Error scanning receipts:", error);
+      Alert.alert("Error", "Failed to scan receipts.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Button title="Upload from Gallery" onPress={pickImage} />
-      <Button title="Take a Photo" onPress={takePhoto} />
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Receipt Scanner</Text>
 
-      {image && <Image source={{ uri: image }} style={styles.image} />}
-
-      <Button title="Extract Details" onPress={extractText} />
-      {isLoading && <ActivityIndicator size="large" color="#007bff" />}
-
-      {/* Show details from OCR */}
-      {extractedDetails && (
-        <View style={styles.resultContainer}>
-          <Text style={styles.resultText}>Merchant: {extractedDetails.merchantName}</Text>
-          <Text style={styles.resultText}>Date: {extractedDetails.purchaseDate}</Text>
-          <Text style={styles.resultText}>Category: {extractedDetails.category}</Text>
-          <Text style={styles.resultText}>Total: ${extractedDetails.total}</Text>
-        </View>
+      <Button title="Upload Images (Multi-page)" onPress={pickImages} />
+      {images.length > 0 && (
+        <Text style={styles.infoText}>
+          {images.length} receipt(s) added. Press "Scan Receipts" to process.
+        </Text>
       )}
+
+      {isLoading ? (
+        <>
+          <ActivityIndicator size="large" color="#007bff" />
+          <Text style={styles.infoText}>Processing... {currentProgress}%</Text>
+        </>
+      ) : (
+        <Button title="Scan Receipts" onPress={scanReceipts} />
+      )}
+
+      {/* Display scanned results */}
+      {scannedReceipts.map((receipt, index) => (
+        <View key={index} style={styles.receiptContainer}>
+          <Text style={styles.receiptTitle}>Receipt {index + 1}</Text>
+          <Text>Merchant: {receipt.merchantName}</Text>
+          <Text>Date: {receipt.purchaseDate}</Text>
+          <Text>Category: {receipt.category}</Text>
+          <Text>Total: ${receipt.amount.toFixed(2)}</Text>
+        </View>
+      ))}
 
       <Button
         title="View Spending Data"
         onPress={() => navigation.navigate("SpendingGraph")}
       />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    padding: 20,
+    padding: 16,
     backgroundColor: "#fff",
   },
-  image: {
-    width: "100%",
-    height: 200,
-    marginVertical: 10,
-    resizeMode: "contain",
-  },
-  resultContainer: {
-    marginTop: 20,
-  },
-  resultText: {
-    fontSize: 16,
+  title: {
+    fontSize: 24,
     fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  infoText: {
+    fontSize: 16,
+    textAlign: "center",
+    marginVertical: 8,
+  },
+  receiptContainer: {
+    marginVertical: 16,
+    padding: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    backgroundColor: "#f9f9f9",
+  },
+  receiptTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 8,
   },
 });
 
-export default ReceiptTrackerScreen;
+export default ReceiptScannerScreen;
+
