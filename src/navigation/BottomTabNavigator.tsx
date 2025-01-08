@@ -4,8 +4,7 @@ import React, { useState } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import HomeScreen from "../screens/HomeScreen";
-import SettingsScreen from "../screens/SettingsScreen";
-
+import { SettingsScreen } from "../screens/SettingsScreen";
 import {
   View,
   TouchableOpacity,
@@ -22,48 +21,57 @@ export default function BottomTabNavigator() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const navigation = useNavigation();
 
-  function openModal() {
-    setIsModalVisible(true);
-  }
-  function closeModal() {
-    setIsModalVisible(false);
-  }
+  const openModal = () => setIsModalVisible(true);
+  const closeModal = () => setIsModalVisible(false);
 
-  function handleGoToReceipts() {
+  const handleGoToReceipts = () => {
     closeModal();
     navigation.navigate("ReceiptTracker" as never);
-  }
+  };
 
-  // Instead of "DistanceScreen", we use "MileageTracker" to show your map-based screen
-  function handleGoToDistance() {
+  const handleGoToDistance = () => {
     closeModal();
     navigation.navigate("MileageTracker" as never);
-  }
+  };
 
   return (
     <>
       <Tab.Navigator
         screenOptions={{
-          tabBarActiveTintColor: "#007bff",
-          tabBarInactiveTintColor: "gray",
+          tabBarStyle: {
+            height: 60,
+          },
+          tabBarShowLabel: false,
         }}
       >
         <Tab.Screen
           name="Home"
           component={HomeScreen}
           options={{
-            headerTitle: "Home",
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="home" size={size} color={color} />
             ),
           }}
         />
 
+        {/* Floating button - use children instead of inline component */}
+        <Tab.Screen
+          name="Middle"
+          options={{
+            tabBarIcon: () => (
+              <TouchableOpacity style={styles.floatingBtn} onPress={openModal}>
+                <MaterialCommunityIcons name="plus" size={30} color="#fff" />
+              </TouchableOpacity>
+            ),
+          }}
+        >
+          {() => null}
+        </Tab.Screen>
+
         <Tab.Screen
           name="Settings"
           component={SettingsScreen}
           options={{
-            headerTitle: "Settings",
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="cog" size={size} color={color} />
             ),
@@ -71,14 +79,7 @@ export default function BottomTabNavigator() {
         />
       </Tab.Navigator>
 
-      {/* Floating button at bottom-center */}
-      <View style={styles.floatingBtnContainer}>
-        <TouchableOpacity style={styles.floatingBtn} onPress={openModal}>
-          <MaterialCommunityIcons name="plus" size={30} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Modal for picking Receipt vs Distance */}
+      {/* Modal for floating action button */}
       <Modal
         visible={isModalVisible}
         transparent
@@ -115,11 +116,6 @@ export default function BottomTabNavigator() {
 }
 
 const styles = StyleSheet.create({
-  floatingBtnContainer: {
-    position: "absolute",
-    bottom: 20,
-    alignSelf: "center",
-  },
   floatingBtn: {
     width: 60,
     height: 60,
@@ -127,6 +123,9 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
+    position: "absolute",
+    bottom: 30,
+    alignSelf: "center",
     elevation: 5,
   },
   modalOverlay: {

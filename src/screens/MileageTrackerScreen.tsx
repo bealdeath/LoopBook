@@ -15,15 +15,14 @@ import { useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 import { addTrip, updateTrip } from "../redux/slices/tripSlice";
 
-const START_SPEED_KMH = 10;
-const STOP_SPEED_KMH = 5;
-const SPEED_QUEUE_SIZE = 5;
-const REIMBURSE_RATE_PER_MILE = 0.655; 
+const START_SPEED_KMH = 10; // Speed to start tracking automatically
+const STOP_SPEED_KMH = 5; // Speed to stop tracking automatically
+const SPEED_QUEUE_SIZE = 5; // Number of speed readings to average
+const REIMBURSE_RATE_PER_MILE = 0.655;
 const KM_TO_MILES = 0.621371;
 
 /**
- * This screen uses speed averaging, auto detect, 
- * and updates the trip in Redux with each new location.
+ * Mileage Tracker Screen
  */
 export default function MileageTrackerScreen() {
   const dispatch = useDispatch();
@@ -34,20 +33,22 @@ export default function MileageTrackerScreen() {
   const [distance, setDistance] = useState(0);
   const [autoDetect, setAutoDetect] = useState(false);
 
-  // watchRef for watchPositionAsync
   const watchRef = useRef<any>(null);
-  // a rolling queue to store speed
-  const speedQueueRef = useRef<number[]>([]);
-  // store the current trip's ID in Redux
+  const speedQueueRef = useRef<number[]>([]); // Queue for averaging speed
   const [tripId, setTripId] = useState<string | null>(null);
 
+  // Request location permission and set initial location
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Location Permission Denied", "Need location for mileage tracking.");
+        Alert.alert(
+          "Location Permission Denied",
+          "Location permission is required for mileage tracking."
+        );
         return;
       }
+
       const initial = await Location.getCurrentPositionAsync({});
       setLocation(initial);
     })();
@@ -60,23 +61,6 @@ export default function MileageTrackerScreen() {
     };
   }, []);
 
-  function distanceBetweenCoords(
-    [lat1, lon1]: [number, number],
-    [lat2, lon2]: [number, number]
-  ) {
-    const R = 6371; // Earth radius km
-    const toRad = (val: number) => (val * Math.PI) / 180;
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(lat1)) *
-        Math.cos(toRad(lat2)) *
-        Math.sin(dLon / 2) ** 2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  }
-
   function calcDistanceKm(coords: [number, number][]) {
     if (coords.length < 2) return 0;
     let total = 0;
@@ -86,18 +70,36 @@ export default function MileageTrackerScreen() {
     return total;
   }
 
+  function distanceBetweenCoords(
+    [lat1, lon1]: [number, number],
+    [lat2, lon2]: [number, number]
+  ) {
+    const R = 6371; // Earth's radius in km
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) ** 2;
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
   function calcReimbursement(km: number) {
     const miles = km * KM_TO_MILES;
-    return miles * REIMBURSE_RATE_PER_MILE; 
+    return miles * REIMBURSE_RATE_PER_MILE;
   }
 
   function beginTrip() {
     if (tracking) return;
+
     setTracking(true);
     const newId = uuidv4();
     setTripId(newId);
 
-    // Add a new trip to Redux
     dispatch(
       addTrip({
         id: newId,
@@ -118,31 +120,32 @@ export default function MileageTrackerScreen() {
 
   function endTrip() {
     if (!tracking) return;
+
     setTracking(false);
-    if (watchRef.current) {
-      watchRef.current.remove();
-      watchRef.current = null;
-    }
+
     if (tripId) {
       const finalReimb = calcReimbursement(distance);
+
       dispatch(
         updateTrip({
           id: tripId,
           route,
           distanceKm: distance,
-          startTime: new Date().toISOString(), // or store the original start
+          startTime: new Date().toISOString(), // Store the original start
           endTime: new Date().toISOString(),
           classification: "Personal",
           reimbursement: finalReimb,
           reviewed: false,
         })
       );
+
       setTripId(null);
     }
   }
 
   function startWatch() {
-    if (watchRef.current) return; // already watching
+    if (watchRef.current) return;
+
     watchRef.current = Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.High,
@@ -150,22 +153,22 @@ export default function MileageTrackerScreen() {
       },
       (loc) => {
         setLocation(loc);
+
         const lat = loc.coords.latitude;
         const lon = loc.coords.longitude;
         const speedMps = loc.coords.speed || 0;
         const speedKmh = speedMps * 3.6;
 
-        // push speed into queue
         speedQueueRef.current.push(speedKmh);
+
         if (speedQueueRef.current.length > SPEED_QUEUE_SIZE) {
           speedQueueRef.current.shift();
         }
-        // compute average
+
         const avgSpeed =
           speedQueueRef.current.reduce((a, b) => a + b, 0) /
           speedQueueRef.current.length;
 
-        // auto detect logic
         if (autoDetect) {
           if (!tracking && avgSpeed > START_SPEED_KMH) {
             beginTrip();
@@ -174,27 +177,11 @@ export default function MileageTrackerScreen() {
           }
         }
 
-        // if tracking, update route
-        if (tracking && tripId) {
+        if (tracking) {
           setRoute((prev) => {
             const updated = [...prev, [lat, lon]];
             const dist = calcDistanceKm(updated);
             setDistance(dist);
-
-            const reimb = calcReimbursement(dist);
-            // update Redux
-            dispatch(
-              updateTrip({
-                id: tripId,
-                route: updated,
-                distanceKm: dist,
-                startTime: new Date().toISOString(), // or store original
-                endTime: null,
-                classification: "Personal",
-                reimbursement: reimb,
-                reviewed: false,
-              })
-            );
             return updated;
           });
         }
@@ -202,28 +189,16 @@ export default function MileageTrackerScreen() {
     );
   }
 
-  function stopWatch() {
-    if (watchRef.current) {
-      watchRef.current.remove();
-      watchRef.current = null;
-    }
-  }
-
   useEffect(() => {
-    // Start watching once we mount, to allow speed detection
     startWatch();
+
     return () => {
-      stopWatch();
+      if (watchRef.current) {
+        watchRef.current.remove();
+        watchRef.current = null;
+      }
     };
   }, []);
-
-  function handleToggleTracking() {
-    if (tracking) {
-      endTrip();
-    } else {
-      beginTrip();
-    }
-  }
 
   return (
     <View style={styles.container}>
@@ -245,16 +220,8 @@ export default function MileageTrackerScreen() {
           strokeColor="#007bff"
           strokeWidth={5}
         />
-        {route.length > 0 && (
-          <Marker
-            coordinate={{
-              latitude: route[route.length - 1][0],
-              longitude: route[route.length - 1][1],
-            }}
-            title="Current Location"
-          />
-        )}
       </MapView>
+
       <View style={styles.infoContainer}>
         <Text style={styles.distanceText}>
           Distance: {distance.toFixed(2)} km
@@ -262,7 +229,7 @@ export default function MileageTrackerScreen() {
         <View style={styles.row}>
           <Button
             title={tracking ? "Stop" : "Start"}
-            onPress={handleToggleTracking}
+            onPress={tracking ? endTrip : beginTrip}
             color="#007bff"
           />
           <View style={styles.autoWrapper}>

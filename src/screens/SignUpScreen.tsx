@@ -8,62 +8,60 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from "react-native";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { firebaseAuth, db } from "../utils/firebaseConfig";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+import { firebaseAuth } from "../utils/firebaseConfig";
 
 export default function SignUpScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPass, setConfirmPass] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleSignUp() {
-    if (!email || !password) {
-      Alert.alert("Missing Fields", "Please enter email and password.");
+    if (!email || !password || !confirmPassword) {
+      Alert.alert("Error", "All fields are required.");
       return;
     }
-    if (password !== confirmPass) {
-      Alert.alert("Passwords Differ", "Your passwords do not match.");
+
+    if (password !== confirmPassword) {
+      Alert.alert("Error", "Passwords do not match.");
       return;
     }
+
+    setLoading(true);
+
     try {
-      // 1) create user in Firebase Auth
       const userCred = await createUserWithEmailAndPassword(firebaseAuth, email, password);
-      const { uid } = userCred.user;
+      const user = userCred.user;
 
-      // 2) optionally store a "profile" in Firestore
-      const userRef = doc(db, "users", uid);
-      await setDoc(userRef, {
-        email,
-        displayName,
-        createdAt: new Date().toISOString(),
-      });
+      await sendEmailVerification(user);
 
-      Alert.alert("Account Created", "You can now log in.");
-      navigation.goBack();
+      Alert.alert(
+        "Account Created",
+        "A verification email has been sent. Please verify your email before logging in."
+      );
+
+      navigation.navigate("SignIn");
     } catch (err: any) {
-      Alert.alert("Sign Up Failed", err.message || "Unknown error");
+      Alert.alert("Sign Up Failed", err.message || "An unknown error occurred.");
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create a LoopBook Account</Text>
+      <Text style={styles.title}>Create an Account</Text>
 
       <TextInput
         style={styles.input}
         placeholder="Email"
         autoCapitalize="none"
+        keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Display Name (Optional)"
-        value={displayName}
-        onChangeText={setDisplayName}
       />
       <TextInput
         style={styles.input}
@@ -76,32 +74,38 @@ export default function SignUpScreen({ navigation }: any) {
         style={styles.input}
         placeholder="Confirm Password"
         secureTextEntry
-        value={confirmPass}
-        onChangeText={setConfirmPass}
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
       />
 
-      <TouchableOpacity style={styles.btn} onPress={handleSignUp}>
-        <Text style={styles.btnText}>Sign Up</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color="#007bff" />
+      ) : (
+        <TouchableOpacity style={styles.button} onPress={handleSignUp}>
+          <Text style={styles.buttonText}>Sign Up</Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity onPress={() => navigation.navigate("SignIn")}>
+        <Text style={styles.link}>Already have an account? Sign In</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-// Style
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 20, justifyContent: "center" },
+  container: { flex: 1, padding: 20, justifyContent: "center", backgroundColor: "#f9f9f9" },
   title: { fontSize: 24, fontWeight: "bold", marginBottom: 30, textAlign: "center" },
   input: {
-    backgroundColor: "#f2f2f2",
-    marginBottom: 15,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ccc",
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 5,
+    marginBottom: 15,
+    color: "#333",
   },
-  btn: {
-    backgroundColor: "#28a745",
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  btnText: { color: "#fff", fontSize: 16, textAlign: "center" },
+  button: { backgroundColor: "#007bff", padding: 15, borderRadius: 5, marginBottom: 20 },
+  buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
+  link: { color: "#007bff", textAlign: "center", marginTop: 10 },
 });
