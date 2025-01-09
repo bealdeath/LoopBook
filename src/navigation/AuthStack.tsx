@@ -10,6 +10,7 @@ import ReceiptTrackerScreen from "../screens/ReceiptTrackerScreen";
 import MileageTrackerScreen from "../screens/MileageTrackerScreen";
 import SummaryExportScreen from "../screens/SummaryExportScreen";
 import ReceiptEditorScreen from "../screens/ReceiptEditorScreen";
+import ReceiptDetailScreen from '../screens/ReceiptDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -56,6 +57,11 @@ export default function AuthStack() {
         name="ReceiptEditor"
         component={ReceiptEditorScreen}
         options={{ title: "Edit Receipt" }}
+      />
+      <Stack.Screen
+        name="ReceiptDetail"
+        component={ReceiptDetailScreen}
+        options={{ title: "Receipt Detail" }}
       />
     </Stack.Navigator>
   );

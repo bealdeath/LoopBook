@@ -6,7 +6,7 @@ import DistanceScreen from '../screens/MileageTrackerScreen'; // Ensure correct 
 import ReceiptScreen from '../screens/ReceiptManagerScreen'; // Ensure correct import
 import MileageTrackerScreen from '../screens/MileageTrackerScreen';
 import ReceiptTrackerScreen from '../screens/ReceiptTrackerScreen';
-
+import ReceiptScannerScreen from "../screens/ReceiptScannerScreen";
 const Stack = createStackNavigator();
 
 export default function AppNavigator() {
@@ -18,6 +18,7 @@ export default function AppNavigator() {
         <Stack.Screen name="ReceiptScreen" component={ReceiptScreen} />
         <Stack.Screen name="MileageTrackerScreen" component={MileageTrackerScreen} />
         <Stack.Screen name="Receipt TrackerScreen" component={ReceiptTrackerScreen} />
+        <Stack.Screen name="ReceiptScanner" component={ReceiptScannerScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

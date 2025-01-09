@@ -1,4 +1,5 @@
 // File: src/screens/ReceiptEditorScreen.tsx
+
 import React, { useState } from "react";
 import {
   View,
@@ -22,6 +23,10 @@ export default function ReceiptEditorScreen() {
   const [ocrResults, setOcrResults] = useState<any[]>([]);
   const [merchantName, setMerchantName] = useState("");
   const [total, setTotal] = useState("");
+  const [category, setCategory] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [last4, setLast4] = useState("");
 
   async function pickImageFromGallery() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -66,11 +71,15 @@ export default function ReceiptEditorScreen() {
     }
     setOcrResults(results);
 
-    // Optionally auto-populate merchantName/total from the first or combined result:
+    // Optionally auto-populate fields from the first or combined result:
     if (results.length > 0) {
-      // e.g. pick the first as a guess
-      setMerchantName(results[0].details.merchantName || "");
-      setTotal(results[0].details.total?.toString() || "");
+      const firstDetails = results[0].details;
+      setMerchantName(firstDetails.merchantName || "");
+      setTotal(firstDetails.total?.toString() || "");
+      setCategory(firstDetails.category || "");
+      setPurchaseDate(firstDetails.purchaseDate || "");
+      setPaymentMethod(firstDetails.paymentMethod || "");
+      setLast4(firstDetails.last4 || "");
     }
   }
 
@@ -79,25 +88,36 @@ export default function ReceiptEditorScreen() {
       Alert.alert("No Images", "Please add at least one image before finalizing.");
       return;
     }
+
     const newId = uuidv4();
-    // Convert total to number
     const numericTotal = parseFloat(total) || 0;
-    dispatch(
-      addReceipt({
-        id: newId,
-        images: receiptImages,
-        merchantName,
-        total: numericTotal,
-        date: new Date().toLocaleDateString(),
-        // add other fields if you want
-      })
-    );
+
+    const newReceipt = {
+      id: newId,
+      images: receiptImages,
+      category: category || "Other",
+      amount: numericTotal,
+      date: purchaseDate || new Date().toLocaleDateString(),
+      merchantName: merchantName || "Unknown Merchant",
+      purchaseDate: purchaseDate || "Unknown Date",
+      paymentMethod: paymentMethod || "Unknown",
+      last4: last4 || "0000",
+      returns: 0,               // Set by prepare in the slice
+      netTotal: numericTotal,   // Set by prepare in the slice
+    };
+
+    dispatch(addReceipt(newReceipt));
     Alert.alert("Saved", "Multi-page receipt saved!");
-    // Clear
+
+    // Clear all fields
     setReceiptImages([]);
     setOcrResults([]);
     setMerchantName("");
     setTotal("");
+    setCategory("");
+    setPurchaseDate("");
+    setPaymentMethod("");
+    setLast4("");
   }
 
   return (
@@ -127,7 +147,7 @@ export default function ReceiptEditorScreen() {
         <Text style={styles.ocrText}>Run OCR on All Pages</Text>
       </TouchableOpacity>
 
-      {/* Basic manual overrides */}
+      {/* Manual Overrides */}
       <TextInput
         style={styles.input}
         placeholder="Merchant Name"
@@ -136,10 +156,35 @@ export default function ReceiptEditorScreen() {
       />
       <TextInput
         style={styles.input}
+        placeholder="Category"
+        value={category}
+        onChangeText={setCategory}
+      />
+      <TextInput
+        style={styles.input}
         placeholder="Total Amount"
         keyboardType="numeric"
         value={total}
         onChangeText={setTotal}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Purchase Date"
+        value={purchaseDate}
+        onChangeText={setPurchaseDate}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Payment Method"
+        value={paymentMethod}
+        onChangeText={setPaymentMethod}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Last 4 Digits"
+        keyboardType="numeric"
+        value={last4}
+        onChangeText={setLast4}
       />
 
       <TouchableOpacity style={styles.finalButton} onPress={finalizeMultiPageReceipt}>
@@ -190,13 +235,18 @@ const styles = StyleSheet.create({
   ocrText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   input: {
     backgroundColor: "#f9f9f9",
-    borderWidth: 1, borderColor: "#ccc",
+    borderWidth: 1,
+    borderColor: "#ccc",
     borderRadius: 8,
-    padding: 10, marginBottom: 10,
+    padding: 10,
+    marginBottom: 10,
   },
   finalButton: {
     backgroundColor: "orange",
-    padding: 15, borderRadius: 8, alignItems: "center", marginBottom: 10,
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 10,
   },
   finalText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   ocrResultItem: {

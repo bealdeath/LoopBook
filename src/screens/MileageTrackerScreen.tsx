@@ -1,16 +1,15 @@
-// Ensure proper cleanup and advanced UI
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   Button,
-  Switch,
+  Switch, // Used for enabling/disabling auto-detection
   Alert,
-  TouchableOpacity,
+  TouchableOpacity, // Future feature: Custom buttons or interactions
 } from "react-native";
-import MapView, { Polyline, Marker } from "react-native-maps";
-import * as Location from "expo-location";
+import MapView, { Polyline, Marker } from "react-native-maps"; // Marker kept for future trip pins
+import * as Location from "expo-location"; // Location tracking
 import { useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 import { addTrip, updateTrip } from "../redux/slices/tripSlice";
@@ -28,6 +27,7 @@ export default function MileageTrackerScreen() {
   const [tracking, setTracking] = useState(false);
   const [distance, setDistance] = useState(0);
   const [autoDetect, setAutoDetect] = useState(false);
+  const [speedQueue, setSpeedQueue] = useState<number[]>([]); // Queue for speed smoothing
   const watchRef = useRef<any>(null);
 
   const startWatch = async () => {
@@ -38,23 +38,56 @@ export default function MileageTrackerScreen() {
     }
 
     watchRef.current = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.High, distanceInterval: 5 },
+      {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 1000, // Poll every second
+        distanceInterval: 5, // Minimum distance between updates in meters
+      },
       (loc) => {
         setLocation(loc);
+
         const lat = loc.coords.latitude;
         const lon = loc.coords.longitude;
-        setRoute((prev) => [...prev, [lat, lon]]);
+
+        // Add new point to the route if tracking
+        if (tracking) {
+          setRoute((prev) => [...prev, [lat, lon]]);
+        }
+
+        // Update speed queue for auto-detection
+        const currentSpeed = loc.coords.speed ? loc.coords.speed * 3.6 : 0; // Convert m/s to km/h
+        setSpeedQueue((prev) => {
+          const updatedQueue = [...prev, currentSpeed].slice(-SPEED_QUEUE_SIZE);
+          handleSpeedCheck(updatedQueue);
+          return updatedQueue;
+        });
       }
     );
   };
 
+  const stopWatch = () => {
+    if (watchRef.current) {
+      watchRef.current.remove();
+      watchRef.current = null;
+    }
+    setTracking(false);
+  };
+
+  const handleSpeedCheck = (speedQueue: number[]) => {
+    const averageSpeed =
+      speedQueue.reduce((sum, speed) => sum + speed, 0) / speedQueue.length;
+
+    if (!tracking && autoDetect && averageSpeed >= START_SPEED_KMH) {
+      setTracking(true);
+      Alert.alert("Tracking Started", "Your trip is now being tracked.");
+    } else if (tracking && averageSpeed <= STOP_SPEED_KMH) {
+      setTracking(false);
+      Alert.alert("Tracking Stopped", "Your trip has stopped tracking.");
+    }
+  };
+
   useEffect(() => {
-    return () => {
-      if (watchRef.current) {
-        watchRef.current.remove();
-        watchRef.current = null;
-      }
-    };
+    return () => stopWatch();
   }, []);
 
   const calcDistanceKm = (coords: [number, number][]) => {
@@ -107,7 +140,16 @@ export default function MileageTrackerScreen() {
       </MapView>
       <View style={styles.infoContainer}>
         <Text style={styles.distanceText}>Distance: {distance.toFixed(2)} km</Text>
-        <Button title={tracking ? "Stop" : "Start"} onPress={startWatch} />
+        <Switch
+          value={autoDetect}
+          onValueChange={setAutoDetect}
+          style={styles.switch}
+        />
+        <Text>Auto Detect: {autoDetect ? "On" : "Off"}</Text>
+        <Button
+          title={tracking ? "Stop Manual Tracking" : "Start Manual Tracking"}
+          onPress={tracking ? stopWatch : startWatch}
+        />
       </View>
     </View>
   );
@@ -118,4 +160,5 @@ const styles = StyleSheet.create({
   map: { flex: 1 },
   infoContainer: { padding: 20, backgroundColor: "#fff" },
   distanceText: { fontSize: 18, marginBottom: 10 },
+  switch: { marginVertical: 10 },
 });

@@ -4,6 +4,8 @@ interface Expense {
   amount: number;
   category: string;
   date: string;
+  total: number;
+  merchant: string;
   // Add more fields if needed (merchant, notes, etc.)
 }
 

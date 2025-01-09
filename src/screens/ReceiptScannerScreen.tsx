@@ -1,4 +1,6 @@
-kimport React, { useState } from "react";
+// File: src/screens/ReceiptScannerScreen.tsx
+
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -15,43 +17,42 @@ import { v4 as uuidv4 } from "uuid";
 
 import { OCRService } from "../utils/OCRService";
 import { addReceipt } from "../redux/slices/receiptSlice";
+import { Receipt } from "../redux/slices/receiptSlice"; // Import the Receipt interface
 
-export default function ReceiptScannerScreen({ navigation }) {
+export default function ReceiptScannerScreen({ navigation }: any) {
   const dispatch = useDispatch();
 
-  const [images, setImages] = useState<string[][]>([]); // Groups of images (multi-page receipts)
+  const [image, setImage] = useState<string | null>(null); // Single image
   const [isLoading, setIsLoading] = useState(false);
-  const [scannedReceipts, setScannedReceipts] = useState<any[]>([]); // Store extracted receipt data
+  const [scannedReceipts, setScannedReceipts] = useState<Receipt[]>([]);
   const [currentProgress, setCurrentProgress] = useState<number>(0);
 
-  const pickImages = async () => {
+  const pickImage = async () => {
     try {
-      // Request media library permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("Permission Denied", "We need gallery permissions to continue.");
         return;
       }
 
-      // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: true,
+        allowsMultipleSelection: false, // Single image for simplicity
         quality: 1,
       });
 
       if (!result.canceled && result.assets?.length) {
-        const selectedImages = result.assets.map((asset) => asset.uri);
-        setImages((prev) => [...prev, selectedImages]); // Add new group of images
+        const selectedImage = result.assets[0].uri;
+        setImage(selectedImage);
       }
     } catch (error) {
-      console.error("Error picking images:", error);
+      console.error("Error picking image:", error);
     }
   };
 
-  const scanReceipts = async () => {
-    if (!images.length) {
-      Alert.alert("No Images", "Please select images first.");
+  const scanReceipt = async () => {
+    if (!image) {
+      Alert.alert("No Image", "Please select an image first.");
       return;
     }
 
@@ -60,32 +61,31 @@ export default function ReceiptScannerScreen({ navigation }) {
     setScannedReceipts([]);
 
     try {
-      const batchResults = await OCRService.extractTextBatch(images);
-
+      const batchResults = await OCRService.extractTextBatch([[image]]);
       const receipts = batchResults.map((result, index) => {
         const details = OCRService.categorizeAndExtractDetails(result.combinedText);
 
-        // Create a new receipt object
         return {
           id: uuidv4(),
-          images: result.pages,
+          images: [result.pages[0]], // Changed to array
           category: details.category,
           amount: details.total,
           date: new Date().toLocaleDateString(),
           merchantName: details.merchantName,
           purchaseDate: details.purchaseDate,
+          paymentMethod: details.paymentMethod,
+          last4: details.last4,
+          // Do not include returns and netTotal; let the slice handle them
         };
       });
 
       setScannedReceipts(receipts);
-
-      // Dispatch each receipt to Redux store
       receipts.forEach((receipt) => dispatch(addReceipt(receipt)));
-
-      Alert.alert("Success", "Receipts scanned successfully!");
+      console.log("Dispatching receipts:", receipts); // Log dispatched receipts
+      Alert.alert("Success", "Receipt scanned successfully!");
     } catch (error) {
-      console.error("Error scanning receipts:", error);
-      Alert.alert("Error", "Failed to scan receipts.");
+      console.error("Error scanning receipt:", error);
+      Alert.alert("Error", "Failed to scan receipt.");
     } finally {
       setIsLoading(false);
     }
@@ -94,71 +94,42 @@ export default function ReceiptScannerScreen({ navigation }) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Receipt Scanner</Text>
-
-      <Button title="Upload Images (Multi-page)" onPress={pickImages} />
-      {images.length > 0 && (
-        <Text style={styles.infoText}>
-          {images.length} receipt(s) added. Press "Scan Receipts" to process.
-        </Text>
+      <Button title="Upload Image" onPress={pickImage} />
+      {image && (
+        <Image source={{ uri: image }} style={styles.imagePreview} />
       )}
-
       {isLoading ? (
         <>
           <ActivityIndicator size="large" color="#007bff" />
           <Text style={styles.infoText}>Processing... {currentProgress}%</Text>
         </>
       ) : (
-        <Button title="Scan Receipts" onPress={scanReceipts} />
+        <Button title="Scan Receipt" onPress={scanReceipt} />
       )}
-
-      {/* Display scanned results */}
       {scannedReceipts.map((receipt, index) => (
-        <View key={index} style={styles.receiptContainer}>
+        <View key={receipt.id} style={styles.receiptContainer}>
           <Text style={styles.receiptTitle}>Receipt {index + 1}</Text>
           <Text>Merchant: {receipt.merchantName}</Text>
           <Text>Date: {receipt.purchaseDate}</Text>
           <Text>Category: {receipt.category}</Text>
           <Text>Total: ${receipt.amount.toFixed(2)}</Text>
+          <Text>Payment Method: {receipt.paymentMethod}</Text>
+          <Text>Last4: {receipt.last4}</Text>
         </View>
       ))}
-
       <Button
-        title="View Spending Data"
-        onPress={() => navigation.navigate("SpendingGraph")}
+        title="View Receipts"
+        onPress={() => navigation.navigate("ReceiptTracker")} // Changed from "SpendingGraph"
       />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  infoText: {
-    fontSize: 16,
-    textAlign: "center",
-    marginVertical: 8,
-  },
-  receiptContainer: {
-    marginVertical: 16,
-    padding: 8,
-    borderWidth: 1,
-    borderRadius: 8,
-    backgroundColor: "#f9f9f9",
-  },
-  receiptTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
+  container: { padding: 16, backgroundColor: "#fff" },
+  title: { fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 16 },
+  infoText: { fontSize: 16, textAlign: "center", marginVertical: 8 },
+  receiptContainer: { marginVertical: 16, padding: 8, borderWidth: 1, borderRadius: 8 },
+  receiptTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 8 },
+  imagePreview: { width: "100%", height: 200, resizeMode: "contain", marginVertical: 16 },
 });
-
-export default ReceiptScannerScreen;
-

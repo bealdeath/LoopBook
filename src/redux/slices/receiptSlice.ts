@@ -4,7 +4,7 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 export interface Receipt {
   id: string;
-  imageUri: string;
+  images: string[];
   category: string;
   amount: number;
   date: string;
@@ -12,8 +12,8 @@ export interface Receipt {
   purchaseDate: string;
   paymentMethod: string;
   last4: string;
-  returns: number;        // <-- NEW field
-  netTotal: number;       // <-- NEW field, total - returns
+  returns: number;        // Automatically set by prepare
+  netTotal: number;       // Automatically set by prepare (amount - returns)
 }
 
 interface ReceiptState {
@@ -30,12 +30,12 @@ export const receiptSlice = createSlice({
   reducers: {
     addReceipt: {
       prepare(payload: Omit<Receipt, "returns" | "netTotal">) {
-        // automatically set returns:0, netTotal = amount - 0
+        // Automatically set returns:0, netTotal = amount - 0
         return {
           payload: {
             ...payload,
             returns: 0,
-            netTotal: payload.amount, // default
+            netTotal: payload.amount, // Default netTotal
           },
         };
       },
