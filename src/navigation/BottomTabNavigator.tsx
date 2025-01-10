@@ -26,12 +26,22 @@ export default function BottomTabNavigator() {
 
   const handleGoToReceipts = () => {
     closeModal();
-    navigation.navigate("ReceiptTracker" as never);
+    navigation.navigate("ReceiptTrackerScreen" as never);
   };
 
   const handleGoToDistance = () => {
     closeModal();
-    navigation.navigate("MileageTracker" as never);
+    navigation.navigate("DistanceScreen" as never);
+  };
+
+  const handleGoToReceiptEditor = () => {
+    closeModal();
+    navigation.navigate("ReceiptEditorScreen" as never); // Match AppNavigator name
+  };
+
+  const handleGoToBulkUpload = () => {
+    closeModal();
+    navigation.navigate("BulkUploadScreen" as never); // Match AppNavigator name
   };
 
   return (
@@ -54,7 +64,6 @@ export default function BottomTabNavigator() {
           }}
         />
 
-        {/* Floating button - use children instead of inline component */}
         <Tab.Screen
           name="Middle"
           options={{
@@ -104,6 +113,22 @@ export default function BottomTabNavigator() {
                 color="#007bff"
               />
               <Text style={styles.modalOptionText}>Track Distance</Text>
+            </Pressable>
+            <Pressable style={styles.modalOption} onPress={handleGoToReceiptEditor}>
+              <MaterialCommunityIcons
+                name="file-edit"
+                size={24}
+                color="#007bff"
+              />
+              <Text style={styles.modalOptionText}>Edit Receipt</Text>
+            </Pressable>
+            <Pressable style={styles.modalOption} onPress={handleGoToBulkUpload}>
+              <MaterialCommunityIcons
+                name="folder-upload"
+                size={24}
+                color="#007bff"
+              />
+              <Text style={styles.modalOptionText}>Bulk Upload</Text>
             </Pressable>
             <Pressable style={styles.modalCancel} onPress={closeModal}>
               <Text style={{ color: "#fff" }}>Cancel</Text>

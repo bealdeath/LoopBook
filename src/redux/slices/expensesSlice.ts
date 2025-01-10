@@ -1,3 +1,5 @@
+// File: src/redux/slices/expensesSlice.ts
+
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface Expense {
@@ -6,7 +8,6 @@ interface Expense {
   date: string;
   total: number;
   merchant: string;
-  // Add more fields if needed (merchant, notes, etc.)
 }
 
 interface ExpensesState {
@@ -27,7 +28,7 @@ const expensesSlice = createSlice({
     setExpenses: (state, action: PayloadAction<Expense[]>) => {
       state.data = action.payload;
     },
-    // If you want more actions, like removeExpense, updateExpense, etc.
+    // Add additional reducer examples here if needed.
   },
 });
 

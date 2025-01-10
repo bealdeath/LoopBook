@@ -43,13 +43,10 @@ const currencySlice = createSlice({
       .addCase(fetchExchangeRates.pending, (state) => {
         state.status = "loading";
       })
-      .addCase(
-        fetchExchangeRates.fulfilled,
-        (state, action: PayloadAction<Record<string, number>>) => {
-          state.status = "succeeded";
-          state.exchangeRates = action.payload;
-        }
-      )
+      .addCase(fetchExchangeRates.fulfilled, (state, action: PayloadAction<Record<string, number>>) => {
+        state.status = "succeeded";
+        state.exchangeRates = action.payload;
+      })
       .addCase(fetchExchangeRates.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload as string;

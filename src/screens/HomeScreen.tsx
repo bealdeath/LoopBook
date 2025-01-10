@@ -4,14 +4,15 @@ import React from "react";
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from "react-native";
 import { FAB } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
-import { startAutomaticTripDetection, stopAutomaticTripDetection } from "../utils/locationService";
+import { startPeriodicTracking, stopPeriodicTracking } from "../utils/locationService";
 
 const FEATURES = [
   { name: "Scan Receipts", action: "ReceiptTracker" },
-  { name: "Trip History", action: "TripHistory" },
+  { name: "Trip History", action: "TripHistory" }, // Ensure Trip History is included
   { name: "Mileage Tracker", action: "MileageTracker" },
   { name: "Edit Receipts", action: "ReceiptEditor" },
-  { name: "Export Data", action: "Export" },
+  { name: "Bulk Upload", action: "BulkUploadScreen" }, // Ensure Bulk Upload is included
+  { name: "Export Data", action: "Export" }, // Ensure Export is included
 ];
 
 export default function HomeScreen() {
@@ -22,13 +23,13 @@ export default function HomeScreen() {
   }
 
   function handleFabPress() {
-    startAutomaticTripDetection();
-    console.log("Trip detection started.");
+    startPeriodicTracking();
+    console.log("Periodic tracking started.");
   }
 
   function handleFabLongPress() {
-    stopAutomaticTripDetection();
-    console.log("Trip detection stopped.");
+    stopPeriodicTracking();
+    console.log("Periodic tracking stopped.");
   }
 
   return (
@@ -50,10 +51,10 @@ export default function HomeScreen() {
       />
       <FAB
         icon="car"
-        label="Trip Detection"
+        label="Start Tracking"
         style={styles.fab}
         onPress={handleFabPress}
-        onLongPress={handleFabLongPress} // Stop trip detection on long press
+        onLongPress={handleFabLongPress} // Stop tracking on long press
       />
     </View>
   );
@@ -80,4 +81,3 @@ const styles = StyleSheet.create({
     backgroundColor: "#007bff",
   },
 });
-

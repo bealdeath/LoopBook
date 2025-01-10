@@ -10,7 +10,11 @@ import ReceiptTrackerScreen from "../screens/ReceiptTrackerScreen";
 import MileageTrackerScreen from "../screens/MileageTrackerScreen";
 import SummaryExportScreen from "../screens/SummaryExportScreen";
 import ReceiptEditorScreen from "../screens/ReceiptEditorScreen";
-import ReceiptDetailScreen from '../screens/ReceiptDetailScreen';
+import ReceiptDetailScreen from "../screens/ReceiptDetailScreen";
+import BulkUploadScreen from "../screens/BulkUploadScreen"; // Added import
+import ExportScreen from "../screens/ExportScreen"; // Added import
+import TripHistoryScreen from "../screens/TripHistoryScreen"; // Added import
+import ReceiptOrganizerScreen from "../screens/ReceiptOrganizerScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -37,7 +41,6 @@ export default function AuthStack() {
         component={BottomTabNavigator}
         options={{ headerShown: false }}
       />
-      {/* Add missing screens */}
       <Stack.Screen
         name="ReceiptTracker"
         component={ReceiptTrackerScreen}
@@ -62,6 +65,27 @@ export default function AuthStack() {
         name="ReceiptDetail"
         component={ReceiptDetailScreen}
         options={{ title: "Receipt Detail" }}
+      />
+      {/* Newly added screens */}
+      <Stack.Screen
+        name="BulkUploadScreen"
+        component={BulkUploadScreen}
+        options={{ title: "Bulk Upload Receipts" }}
+      />
+      <Stack.Screen
+        name="Export"
+        component={ExportScreen}
+        options={{ title: "Export Data" }}
+      />
+      <Stack.Screen
+        name="TripHistory"
+        component={TripHistoryScreen}
+        options={{ title: "Trip History" }}
+      />
+      <Stack.Screen
+        name="ReceiptOrganizer"
+        component={ReceiptOrganizerScreen}
+        options={{ title: "Organized Receipts" }}
       />
     </Stack.Navigator>
   );

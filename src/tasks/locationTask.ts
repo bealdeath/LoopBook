@@ -1,5 +1,5 @@
-import * as TaskManager from "expo-task-manager";
 import { LocationObject } from "expo-location";
+import * as Location from "expo-location";
 
 // A unique name for our location task
 export const loop_background = "BACKGROUND_LOCATION_TASK";

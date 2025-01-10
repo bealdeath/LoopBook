@@ -33,13 +33,11 @@ export default function ReceiptTrackerScreen() {
   const [capturedImageUri, setCapturedImageUri] = useState<string | null>(null);
 
   function handleAddNewReceipt() {
-    console.log("Adding new receipt...");
     setCapturedImageUri(null);
     setIsCategoryModalVisible(true);
   }
 
   function handleCategorySelection(cat: string) {
-    console.log("Category selected:", cat);
     setIsCategoryModalVisible(false);
     Alert.alert("Choose an Option", "", [
       { text: "Take a Picture", onPress: () => handleCameraCapture(cat) },
@@ -50,95 +48,77 @@ export default function ReceiptTrackerScreen() {
 
   async function handleCameraCapture(cat: string) {
     try {
-      console.log("Requesting camera permissions...");
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
-        console.warn("Camera permissions denied.");
         Alert.alert("Permission Denied", "Camera permissions are required.");
         return;
       }
-      console.log("Launching camera...");
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ["images"],
         allowsEditing: true,
         quality: 1,
       });
       if (!result.canceled && result.assets?.length) {
-        console.log("Image captured:", result.assets[0].uri);
         let uri = result.assets[0].uri;
         uri = await persistImage(uri);
         setCapturedImageUri(uri);
         await scanReceipt(uri, cat);
       } else {
-        console.warn("No picture taken.");
         Alert.alert("No Picture Taken", "Please take a picture.");
       }
     } catch (error) {
-      console.error("Camera capture error:", error);
       Alert.alert("Error", "Camera failed.");
     }
   }
 
   async function handleImageSelection(cat: string) {
     try {
-      console.log("Requesting media library permissions...");
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        console.warn("Gallery permissions denied.");
         Alert.alert("Permission Denied", "Gallery permissions are required.");
         return;
       }
-      console.log("Launching image picker...");
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: true,
         quality: 1,
       });
       if (!result.canceled && result.assets?.length) {
-        console.log("Image selected:", result.assets[0].uri);
         let uri = result.assets[0].uri;
         uri = await persistImage(uri);
         setCapturedImageUri(uri);
         await scanReceipt(uri, cat);
       } else {
-        console.warn("No image selected.");
         Alert.alert("No Image Selected", "Please select an image.");
       }
     } catch (error) {
-      console.error("Image selection error:", error);
       Alert.alert("Error", "Selecting image failed.");
     }
   }
 
   async function persistImage(uri: string): Promise<string> {
     try {
-      console.log("Persisting image to file system...");
       const dir = FileSystem.documentDirectory + "receipts/";
       await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
       const newUri = dir + Date.now() + ".jpg";
       await FileSystem.moveAsync({ from: uri, to: newUri });
-      console.log("Image persisted at:", newUri);
       return newUri;
     } catch (error) {
-      console.error("Error persisting image:", error);
       return uri;
     }
   }
 
   async function scanReceipt(imageUri: string, cat: string) {
     if (!cat) {
-      console.error("No category selected.");
       Alert.alert("Error", "No category selected.");
       return;
     }
     setIsLoading(true);
     try {
-      console.log("Scanning receipt for category:", cat);
       const text = await OCRService.extractText(imageUri);
-      console.log("Extracted text:", text);
-
       const details = OCRService.categorizeAndExtractDetails(text);
-      console.log("Extracted details:", details);
+
+      const uploadDate = new Date().toISOString();
 
       dispatch(
         addReceipt({
@@ -146,16 +126,14 @@ export default function ReceiptTrackerScreen() {
           imageUri,
           category: cat,
           amount: details.total,
-          date: new Date().toLocaleDateString(),
+          uploadDate,
           merchantName: details.merchantName,
           purchaseDate: details.purchaseDate,
           paymentMethod: details.paymentMethod,
           last4: details.last4,
         })
       );
-      console.log("Receipt added to Redux store.");
     } catch (error) {
-      console.error("Error scanning receipt:", error);
       Alert.alert("Error", "Failed to scan receipt.");
     } finally {
       setIsLoading(false);
@@ -183,6 +161,13 @@ export default function ReceiptTrackerScreen() {
       <Text style={styles.headerText}>Receipt Tracker</Text>
       <TouchableOpacity style={styles.addButton} onPress={handleAddNewReceipt}>
         <Text style={styles.addButtonText}>+ Add Receipt</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.organizerButton}
+        onPress={() => navigation.navigate("ReceiptOrganizer" as never)}
+      >
+        <Text style={styles.organizerButtonText}>View Organized Receipts</Text>
       </TouchableOpacity>
 
       {capturedImageUri && (
@@ -248,6 +233,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   addButtonText: { color: "#fff", fontSize: 16 },
+  organizerButton: {
+    backgroundColor: "#28a745",
+    borderRadius: 20,
+    padding: 10,
+    alignItems: "center",
+    width: 200,
+    alignSelf: "center",
+    marginBottom: 20,
+  },
+  organizerButtonText: { color: "#fff", fontSize: 16 },
   receiptImage: {
     width: "100%",
     height: 200,
