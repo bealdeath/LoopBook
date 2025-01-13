@@ -24,24 +24,24 @@ export default function BottomTabNavigator() {
   const openModal = () => setIsModalVisible(true);
   const closeModal = () => setIsModalVisible(false);
 
+  // Updated for scanning receipts with ReceiptEditorScreen
   const handleGoToReceipts = () => {
     closeModal();
-    navigation.navigate("ReceiptTrackerScreen" as never);
+    navigation.navigate("ReceiptEditor" as never);
   };
 
+  // Updated to go to the existing mileage tracking screen
   const handleGoToDistance = () => {
     closeModal();
-    navigation.navigate("DistanceScreen" as never);
+    navigation.navigate("MileageTracker" as never);
   };
 
-  const handleGoToReceiptEditor = () => {
-    closeModal();
-    navigation.navigate("ReceiptEditorScreen" as never); // Match AppNavigator name
-  };
+  // Removed handleGoToReceiptEditor since we consolidated scanning & editing
+  // in the same "ReceiptEditor" route.
 
   const handleGoToBulkUpload = () => {
     closeModal();
-    navigation.navigate("BulkUploadScreen" as never); // Match AppNavigator name
+    navigation.navigate("BulkUploadScreen" as never);
   };
 
   return (
@@ -98,6 +98,7 @@ export default function BottomTabNavigator() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Choose an Option</Text>
+            
             <Pressable style={styles.modalOption} onPress={handleGoToReceipts}>
               <MaterialCommunityIcons
                 name="file-document"
@@ -106,6 +107,7 @@ export default function BottomTabNavigator() {
               />
               <Text style={styles.modalOptionText}>Scan Receipt</Text>
             </Pressable>
+
             <Pressable style={styles.modalOption} onPress={handleGoToDistance}>
               <MaterialCommunityIcons
                 name="map-marker-distance"
@@ -114,14 +116,7 @@ export default function BottomTabNavigator() {
               />
               <Text style={styles.modalOptionText}>Track Distance</Text>
             </Pressable>
-            <Pressable style={styles.modalOption} onPress={handleGoToReceiptEditor}>
-              <MaterialCommunityIcons
-                name="file-edit"
-                size={24}
-                color="#007bff"
-              />
-              <Text style={styles.modalOptionText}>Edit Receipt</Text>
-            </Pressable>
+
             <Pressable style={styles.modalOption} onPress={handleGoToBulkUpload}>
               <MaterialCommunityIcons
                 name="folder-upload"
@@ -130,6 +125,7 @@ export default function BottomTabNavigator() {
               />
               <Text style={styles.modalOptionText}>Bulk Upload</Text>
             </Pressable>
+
             <Pressable style={styles.modalCancel} onPress={closeModal}>
               <Text style={{ color: "#fff" }}>Cancel</Text>
             </Pressable>
