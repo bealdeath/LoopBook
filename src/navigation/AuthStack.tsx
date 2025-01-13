@@ -15,12 +15,42 @@ import BulkUploadScreen from "../screens/BulkUploadScreen"; // Added import
 import ExportScreen from "../screens/ExportScreen"; // Added import
 import TripHistoryScreen from "../screens/TripHistoryScreen"; // Added import
 import ReceiptOrganizerScreen from "../screens/ReceiptOrganizerScreen";
-
+import AddExpenseScreen from "../screens/AddExpenseScreen";
+import InvoiceScreen from "../screens/InvoiceScreen";
+import ReportsScreen from "../screens/ReportsScreen";
+import AiInsightsScreen from "../screens/AiInsightsScreen";
+import DashboardScreen from "../screens/DashboardScreen";
+import GameCenterScreen from "../screens/GameCenterScreen";
 const Stack = createNativeStackNavigator();
 
 export default function AuthStack() {
   return (
     <Stack.Navigator>
+      <Stack.Screen
+  name="InvoiceScreen"
+  component={InvoiceScreen}
+  options={{ title: "Invoice" }}
+/>
+<Stack.Screen
+  name="ReportsScreen"
+  component={ReportsScreen}
+  options={{ title: "Reports" }}
+/>
+<Stack.Screen
+  name="AiInsightsScreen"
+  component={AiInsightsScreen}
+  options={{ title: "AI Insights" }}
+/>
+<Stack.Screen
+  name="DashboardScreen"
+  component={DashboardScreen}
+  options={{ title: "Dashboard" }}
+/>
+<Stack.Screen
+  name="GameCenterScreen"
+  component={GameCenterScreen}
+  options={{ title: "Game Center" }}
+/>
       <Stack.Screen
         name="SignIn"
         component={SignInScreen}
@@ -86,6 +116,11 @@ export default function AuthStack() {
         name="ReceiptOrganizer"
         component={ReceiptOrganizerScreen}
         options={{ title: "Organized Receipts" }}
+      />
+      <Stack.Screen
+ 	name="AddExpense"
+ 	component={AddExpenseScreen}
+        options={{ title: "Add Expense" }}
       />
     </Stack.Navigator>
   );

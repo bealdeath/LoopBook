@@ -46,6 +46,7 @@
     "extra": {
       "GOOGLE_API_KEY": "AIzaSyBlIryh--FiQ79FuXo07ByTIRHs0eL8DTo",
       "FIREBASE_AUTH_DOMAIN": "loopbook-5b036.firebaseapp.com",
+      "OPENAI_API_KEY": "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",
       "eas": {
         "projectId": "b204e6c1-3011-4716-a433-dd53b32b50b2"
       }

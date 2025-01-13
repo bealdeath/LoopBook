@@ -20,40 +20,33 @@ if (!GOOGLE_VISION_API_KEY) {
 const GOOGLE_VISION_API_URL = `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`;
 
 export const OCRService = {
-  async extractText(imageUri: string): Promise<string> {
-    console.log("Starting text extraction for image URI:", imageUri);
+ async extractText(imageUri: string): Promise<string> {
+  console.log("Starting text extraction for image URI:", imageUri);
+  try {
+    // Resize image
+    const processed = await ImageManipulator.manipulateAsync(
+      imageUri,
+      [{ resize: { width: 1000 } }],
+      { base64: true, compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+    );
 
-    try {
-      console.log("Resizing image...");
-      const processed = await ImageManipulator.manipulateAsync(
-        imageUri,
-        [{ resize: { width: 1000 } }],
-        { base64: true, compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
-      );
-      console.log("Image resized successfully.");
+    // Prepare payload for OCR API
+    const payload = {
+      requests: [
+        {
+          image: { content: processed.base64 },
+          features: [{ type: "TEXT_DETECTION" }],
+        },
+      ],
+    };
 
-      const payload = {
-        requests: [
-          {
-            image: { content: processed.base64 },
-            features: [{ type: "TEXT_DETECTION" }],
-            imageContext: { languageHints: ["en"] },
-          },
-        ],
-      };
-      console.log("Payload built:", JSON.stringify(payload));
-
-      console.log("Calling Google Vision API...");
-      const response = await axios.post(GOOGLE_VISION_API_URL, payload);
-      const text = response.data?.responses?.[0]?.fullTextAnnotation?.text || "";
-      console.log("Extracted text:", text);
-
-      return text;
-    } catch (err) {
-      console.error("OCR Error:", err.response?.data || err.message || err);
-      throw new Error("Failed to extract text from the image.");
-    }
-  },
+    const response = await axios.post(GOOGLE_VISION_API_URL, payload);
+    return response.data?.responses?.[0]?.fullTextAnnotation?.text || "";
+  } catch (err) {
+    console.error("OCR Error:", err);
+    throw new Error("Text extraction failed. Please try again or verify image quality.");
+  }
+},
 
   categorizeAndExtractDetails(text: string) {
     // Define categories for common purchase types
