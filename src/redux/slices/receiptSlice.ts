@@ -1,10 +1,8 @@
-// File: src/redux/slices/receiptSlice.ts
-
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 export interface Receipt {
   id: string;
-  images: string[];
+  images: string[];       // multi-page images
   category: string;
   amount: number;
   merchantName: string;
@@ -15,10 +13,16 @@ export interface Receipt {
   netTotal: number;
 }
 
-type OrganizedReceipts = Record<string, Record<string, Record<string, Receipt[]>>>;
+interface OrganizedReceipts {
+  [year: string]: {
+    [month: string]: {
+      [day: string]: Receipt[];
+    };
+  };
+}
 
 interface ReceiptState {
-  data: OrganizedReceipts;
+  data: OrganizedReceipts; // year -> month -> day -> array of receipts
 }
 
 const initialState: ReceiptState = {
@@ -33,8 +37,8 @@ export const receiptSlice = createSlice({
       prepare(payload: Omit<Receipt, "returns" | "netTotal">) {
         const currentDate = new Date();
         const year = currentDate.getFullYear().toString();
-        const month = (currentDate.getMonth() + 1).toString().padStart(2, "0");
-        const day = currentDate.getDate().toString().padStart(2, "0");
+        const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+        const day = String(currentDate.getDate()).padStart(2, "0");
 
         return {
           payload: {
@@ -47,18 +51,46 @@ export const receiptSlice = createSlice({
           },
         };
       },
-      reducer(state, action: PayloadAction<Receipt & { year: string; month: string; day: string }>) {
+      reducer(
+        state,
+        action: PayloadAction<Receipt & { year: string; month: string; day: string }>
+      ) {
         const { year, month, day, ...receipt } = action.payload;
 
-        if (!state.data[year]) state.data[year] = {};
-        if (!state.data[year][month]) state.data[year][month] = {};
-        if (!state.data[year][month][day]) state.data[year][month][day] = [];
-
+        if (!state.data[year]) {
+          state.data[year] = {};
+        }
+        if (!state.data[year][month]) {
+          state.data[year][month] = {};
+        }
+        if (!state.data[year][month][day]) {
+          state.data[year][month][day] = [];
+        }
         state.data[year][month][day].push(receipt);
       },
+    },
+
+    updateReceipt: (
+      state,
+      action: PayloadAction<{
+        year: string;
+        month: string;
+        day: string;
+        id: string;
+        changes: Partial<Receipt>;
+      }>
+    ) => {
+      const { year, month, day, id, changes } = action.payload;
+      const dayArray = state.data[year]?.[month]?.[day];
+      if (dayArray) {
+        const index = dayArray.findIndex((r) => r.id === id);
+        if (index >= 0) {
+          dayArray[index] = { ...dayArray[index], ...changes };
+        }
+      }
     },
   },
 });
 
-export const { addReceipt } = receiptSlice.actions;
+export const { addReceipt, updateReceipt } = receiptSlice.actions;
 export default receiptSlice.reducer;

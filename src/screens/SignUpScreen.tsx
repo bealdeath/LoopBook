@@ -1,4 +1,4 @@
-// File: src/screens/SignUpScreen.tsx
+// File: src/screens/SignUpScreen.js
 
 import React, { useState } from "react";
 import {
@@ -13,18 +13,20 @@ import {
 import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { firebaseAuth } from "../utils/firebaseConfig";
 
-export default function SignUpScreen({ navigation }: any) {
+export default function SignUpScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // NEW: optional GST number
+  const [gstNumber, setGstNumber] = useState("");
+
   async function handleSignUp() {
     if (!email || !password || !confirmPassword) {
-      Alert.alert("Error", "All fields are required.");
+      Alert.alert("Error", "All fields (email, password, confirm) are required.");
       return;
     }
-
     if (password !== confirmPassword) {
       Alert.alert("Error", "Passwords do not match.");
       return;
@@ -38,13 +40,20 @@ export default function SignUpScreen({ navigation }: any) {
 
       await sendEmailVerification(user);
 
+      // Optional: store the GST in Firestore or your DB
+      // e.g. using Firestore: setDoc(doc(db, "users", user.uid), { gstNumber });
+      // For now, we just alert
+      if (gstNumber.trim()) {
+        console.log("Storing GST number:", gstNumber);
+      }
+
       Alert.alert(
         "Account Created",
-        "A verification email has been sent. Please verify your email before logging in."
+        "A verification email has been sent. Please verify your email."
       );
 
       navigation.navigate("SignIn");
-    } catch (err: any) {
+    } catch (err) {
       Alert.alert("Sign Up Failed", err.message || "An unknown error occurred.");
     } finally {
       setLoading(false);
@@ -76,6 +85,14 @@ export default function SignUpScreen({ navigation }: any) {
         secureTextEntry
         value={confirmPassword}
         onChangeText={setConfirmPassword}
+      />
+
+      {/* Optional GST field */}
+      <TextInput
+        style={styles.input}
+        placeholder="GST Number (optional)"
+        value={gstNumber}
+        onChangeText={setGstNumber}
       />
 
       {loading ? (

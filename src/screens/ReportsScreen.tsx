@@ -1,88 +1,39 @@
-import React from "react";
-import { View, Text, StyleSheet, Dimensions, ScrollView } from "react-native";
+// File: src/screens/ReportsScreen.tsx
+import React, { useMemo } from "react";
+import { View, Text, StyleSheet } from "react-native";
 import { useSelector } from "react-redux";
-import { RootState } from "../redux/store";
-import { LineChart } from "react-native-chart-kit";
+import { RootState } from "../redux/rootReducer"; // import your root state type
 
 export default function ReportsScreen() {
-  const receipts = useSelector((state: RootState) => state.receipts.data);
-  const expenses = useSelector((state: RootState) => state.expenses.data);
+  // Access the receipt slice
+  const receiptsState = useSelector((state: RootState) => state.receipts);
+  const receipts = receiptsState.data || []; // data is an array
 
-  // Basic P&L calculations
-  const totalExpenses = expenses.reduce((acc, exp) => acc + exp.amount, 0);
-  const totalReceipts = receipts.reduce((acc, rec) => acc + rec.amount, 0);
-  const netIncome = totalReceipts - totalExpenses;
+  // If you have an expense slice named "expenses", do similarly
+  // const expensesState = useSelector((state: RootState) => state.expenses);
+  // const expenses = expensesState?.data || [];
 
-  // Example monthly data (replace with real date-grouped values if you have them)
-  const chartData = {
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-    datasets: [
-      {
-        data: [20, 45, 28, 80, 99, 43],
-        color: () => "#007bff",
-      },
-    ],
-  };
+  const totalReceipts = useMemo(() => {
+    return receipts.reduce((acc, r) => acc + (r.amount || 0), 0);
+  }, [receipts]);
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <Text style={styles.title}>Financial Reports</Text>
       <View style={styles.card}>
-        <Text style={styles.label}>
-          Total Expenses: ${totalExpenses.toFixed(2)}
-        </Text>
-        <Text style={styles.label}>
-          Total Receipt Income: ${totalReceipts.toFixed(2)}
-        </Text>
-        <Text style={styles.label}>Net Income: ${netIncome.toFixed(2)}</Text>
+        <Text>Total Receipts: ${totalReceipts.toFixed(2)}</Text>
       </View>
-
-      <Text style={styles.subTitle}>Monthly Trend</Text>
-      <LineChart
-        data={chartData}
-        width={Dimensions.get("window").width * 0.9}
-        height={220}
-        chartConfig={{
-          backgroundGradientFrom: "#f5f5f5",
-          backgroundGradientTo: "#f5f5f5",
-          color: () => "#007bff",
-          labelColor: () => "#333",
-        }}
-        style={styles.chart}
-        bezier
-      />
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  title: {
-    fontSize: 24,
-    textAlign: "center",
-    marginVertical: 20,
-    fontWeight: "bold",
-    color: "#333",
-  },
+  container: { flex: 1, backgroundColor: "#f9f9f9", padding: 20 },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
   card: {
     backgroundColor: "#fff",
-    marginHorizontal: 10,
     padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
-  },
-  label: { fontSize: 16, marginBottom: 5, color: "#555" },
-  subTitle: {
-    fontSize: 18,
-    textAlign: "center",
-    marginBottom: 10,
-    fontWeight: "600",
-    color: "#333",
-  },
-  chart: {
-    alignSelf: "center",
-    borderRadius: 10,
-    marginBottom: 30,
+    borderRadius: 8,
+    elevation: 2,
   },
 });
-

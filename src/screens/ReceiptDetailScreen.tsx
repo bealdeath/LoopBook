@@ -1,140 +1,122 @@
 // File: src/screens/ReceiptDetailScreen.tsx
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  TextInput,
-  ScrollView, // <--- Import
-} from "react-native";
+import { View, Text, Image, TextInput, StyleSheet, TouchableOpacity } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "../redux/rootReducer";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import { RootState } from "../redux/store";
-import { updateReceipt } from "../redux/slices/receiptSlice";
+import { updateReceipt, Receipt } from "../redux/slices/receiptSlice";
 
 export default function ReceiptDetailScreen() {
-  const route = useRoute<any>();
+  const route = useRoute();
   const navigation = useNavigation();
+
+  // We expect route.params to have: { id, year, month, day }
+  const { id, year, month, day } = route.params as {
+    id: string;
+    year: string;
+    month: string;
+    day: string;
+  };
+
   const dispatch = useDispatch();
-
-  const receiptId = route.params?.receiptId;
-  const receipt = useSelector((state: RootState) =>
-    state.receipts.data.find((r) => r.id === receiptId)
-  );
-
-  const [merchantName, setMerchantName] = useState(receipt?.merchantName || "");
-  const [tempDate, setTempDate] = useState(receipt?.purchaseDate || "");
-  const [tempAmount, setTempAmount] = useState(String(receipt?.amount || "0"));
-  const [tempPayment, setTempPayment] = useState(receipt?.paymentMethod || "Unknown");
-  const [tempLast4, setTempLast4] = useState(receipt?.last4 || "0000");
-  const [tempReturns, setTempReturns] = useState(String(receipt?.returns || "0"));
+  const receiptsState = useSelector((state: RootState) => state.receipts);
+  const dayArray = receiptsState.data?.[year]?.[month]?.[day] || [];
+  const receipt = dayArray.find((r) => r.id === id);
 
   if (!receipt) {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Receipt Not Found</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtn}>Go Back</Text>
-        </TouchableOpacity>
       </View>
     );
   }
 
-  function handleSaveChanges() {
-    const newAmount = parseFloat(tempAmount) || 0;
-    const newReturns = parseFloat(tempReturns) || 0;
+  const [merchantName, setMerchantName] = useState(receipt.merchantName || "");
+  const [amount, setAmount] = useState(String(receipt.amount));
+  const [purchaseDate, setPurchaseDate] = useState(receipt.purchaseDate || "");
+  const [category, setCategory] = useState(receipt.category || "");
+
+  function handleSave() {
+    const numericAmount = parseFloat(amount) || 0;
     dispatch(
       updateReceipt({
-        ...receipt,
-        merchantName,
-        purchaseDate: tempDate,
-        amount: newAmount,
-        returns: newReturns,
-        netTotal: newAmount - newReturns,
-        paymentMethod: tempPayment,
-        last4: tempLast4,
+        year,
+        month,
+        day,
+        id: receipt.id,
+        changes: {
+          merchantName,
+          amount: numericAmount,
+          purchaseDate,
+          category,
+          netTotal: numericAmount - receipt.returns,
+        },
       })
     );
-    Alert.alert("Updated", "Receipt updated successfully!");
     navigation.goBack();
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      {receipt.imageUri && (
-        <Image source={{ uri: receipt.imageUri }} style={styles.receiptImage} />
+    <View style={styles.container}>
+      <Text style={styles.title}>Receipt Detail</Text>
+
+      {/* Display the first image, or all images */}
+      {receipt.images?.length ? (
+        <Image source={{ uri: receipt.images[0] }} style={styles.receiptImage} />
+      ) : (
+        <Text>No image available</Text>
       )}
 
-      <Text style={styles.label}>Merchant Name:</Text>
-      <TextInput style={styles.input} value={merchantName} onChangeText={setMerchantName} />
-
-      <Text style={styles.label}>Date:</Text>
-      <TextInput style={styles.input} value={tempDate} onChangeText={setTempDate} />
-
-      <Text style={styles.label}>Amount:</Text>
       <TextInput
         style={styles.input}
-        keyboardType="decimal-pad"
-        value={tempAmount}
-        onChangeText={setTempAmount}
+        value={merchantName}
+        onChangeText={setMerchantName}
+        placeholder="Merchant Name"
       />
-
-      <Text style={styles.label}>Payment Method:</Text>
-      <TextInput style={styles.input} value={tempPayment} onChangeText={setTempPayment} />
-
-      <Text style={styles.label}>Last4:</Text>
-      <TextInput style={styles.input} value={tempLast4} onChangeText={setTempLast4} />
-
-      <Text style={styles.label}>Returns:</Text>
       <TextInput
         style={styles.input}
-        keyboardType="decimal-pad"
-        value={tempReturns}
-        onChangeText={setTempReturns}
+        value={amount}
+        onChangeText={setAmount}
+        placeholder="Amount"
+        keyboardType="numeric"
+      />
+      <TextInput
+        style={styles.input}
+        value={purchaseDate}
+        onChangeText={setPurchaseDate}
+        placeholder="Purchase Date"
+      />
+      <TextInput
+        style={styles.input}
+        value={category}
+        onChangeText={setCategory}
+        placeholder="Category"
       />
 
-      {/* Net total if you want to show it */}
-      <Text style={[styles.label, { marginTop: 15 }]}>
-        Net Total: $
-        {(parseFloat(tempAmount) - parseFloat(tempReturns || "0") || 0).toFixed(2)}
-      </Text>
-
-      <TouchableOpacity style={styles.saveBtn} onPress={handleSaveChanges}>
+      <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
         <Text style={styles.saveBtnText}>Save Changes</Text>
       </TouchableOpacity>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  scrollContent: { padding: 20 },
-  backBtn: { color: "blue", marginTop: 10 },
-  receiptImage: {
-    width: "100%",
-    height: 250,
-    resizeMode: "contain",
-    marginBottom: 20,
-  },
-  label: { marginTop: 15, fontSize: 16, fontWeight: "600" },
+  container: { flex: 1, backgroundColor: "#fff", padding: 20 },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 10 },
+  receiptImage: { width: "100%", height: 200, marginBottom: 10 },
   input: {
-    borderWidth: 1,
+    backgroundColor: "#f9f9f9",
     borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 5,
     padding: 10,
-    borderRadius: 8,
-    marginTop: 5,
+    marginBottom: 10,
   },
   saveBtn: {
-    marginTop: 30,
     backgroundColor: "#007bff",
     padding: 15,
     borderRadius: 8,
     alignItems: "center",
-    marginBottom: 30,
   },
-  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
-  title: { fontSize: 20, fontWeight: "bold", marginBottom: 8 },
+  saveBtnText: { color: "#fff", fontWeight: "600" },
 });

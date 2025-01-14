@@ -1,59 +1,68 @@
-// File: src/screens/SettingsScreen.tsx
+// File: src/screens/SettingsScreen.js
 
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import React, { useState, useEffect } from "react";
+import { View, Text, TextInput, Switch, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useDarkMode } from "../utils/DarkModeProvider";
-import { firebaseAuth } from "../utils/firebaseConfig";
+// If you store user data in Redux or Firestore, import that logic here
 
-export const SettingsScreen = ({ navigation }: any) => {
+export function SettingsScreen() {
   const { isDarkMode, toggleDarkMode } = useDarkMode();
 
-  function handleLogout() {
-    firebaseAuth.signOut().then(() => {
-      Alert.alert("Logged Out", "You have been logged out.");
-      navigation.reset({ index: 0, routes: [{ name: "SignIn" }] });
-    });
-  }
+  const [gstNumber, setGstNumber] = useState(""); // fetch from DB or Redux if stored
+  const [tempGst, setTempGst] = useState("");
+
+  useEffect(() => {
+    // Suppose you fetch from Firestore or Redux:
+    // setGstNumber(reduxUser.gstNumber || "");
+    setGstNumber("");
+    setTempGst("");
+  }, []);
+
+  const handleSaveGst = () => {
+    // Save gstNumber to DB
+    console.log("Saving GST:", tempGst);
+    setGstNumber(tempGst);
+    Alert.alert("GST updated", "Your GST number has been saved.");
+  };
 
   return (
-    <View style={[styles.container, isDarkMode && styles.containerDark]}>
-      <Text style={[styles.title, isDarkMode && styles.textDark]}>Settings</Text>
+    <View style={[styles.container, isDarkMode && { backgroundColor: "#1f1f1f" }]}>
+      <Text style={[styles.label, isDarkMode && { color: "#fff" }]}>Dark Mode</Text>
+      <Switch value={isDarkMode} onValueChange={toggleDarkMode} />
 
-      <View style={styles.toggleRow}>
-        <Text style={[styles.toggleLabel, isDarkMode && styles.textDark]}>Enable Dark Mode</Text>
-        <Switch value={isDarkMode} onValueChange={toggleDarkMode} />
+      <View style={{ marginTop: 30 }}>
+        <Text style={[styles.label, isDarkMode && { color: "#fff" }]}>GST Number</Text>
+        <TextInput
+          style={[styles.input, isDarkMode && { backgroundColor: "#333", color: "#fff" }]}
+          value={tempGst}
+          onChangeText={setTempGst}
+          placeholder={gstNumber || "Enter GST number..."}
+          placeholderTextColor="#888"
+        />
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSaveGst}>
+          <Text style={styles.saveBtnText}>Save GST</Text>
+        </TouchableOpacity>
       </View>
-
-      <TouchableOpacity style={[styles.logoutButton, isDarkMode && styles.logoutButtonDark]} onPress={handleLogout}>
-        <MaterialCommunityIcons name="logout" size={20} color="#fff" />
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, backgroundColor: "#fff" },
-  containerDark: { backgroundColor: "#121212" },
-  title: { fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 20 },
-  textDark: { color: "#fff" },
-  toggleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 10,
-  },
-  toggleLabel: { fontSize: 18 },
-  logoutButton: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#ff5252",
+  container: { flex: 1, padding: 20 },
+  label: { fontSize: 16, marginBottom: 10 },
+  input: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ccc",
     padding: 10,
-    borderRadius: 5,
-    marginTop: 20,
+    borderRadius: 8,
+    marginBottom: 10,
   },
-  logoutButtonDark: { backgroundColor: "#d32f2f" },
-  logoutText: { marginLeft: 10, color: "#fff", fontSize: 16 },
+  saveBtn: {
+    backgroundColor: "#007bff",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  saveBtnText: { color: "#fff", fontWeight: "600" },
 });
