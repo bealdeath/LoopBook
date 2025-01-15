@@ -26,7 +26,7 @@ import ProjectDetailScreen from "../screens/ProjectDetailScreen";
 import TimeTrackingScreen from "../screens/TimeTrackingScreen";
 import ExpenseOrganizerScreen from "../screens/ExpenseOrganizerScreen";
 import DynamicDashboardScreen from "../screens/DynamicDashboardScreen";
-
+import SummaryScreen from "../screens/SummaryScreen";
 // NEW SCREENS
 import EmployeeOnboardingScreen from "../screens/EmployeeOnboardingScreen";
 import TimesheetScreen from "../screens/TimesheetScreen";
@@ -70,7 +70,7 @@ export default function AuthStack() {
       <Stack.Screen name="TimeTracking" component={TimeTrackingScreen} options={{ title: "Time Tracking" }} />
       <Stack.Screen name="ExpenseOrganizer" component={ExpenseOrganizerScreen} options={{ title: "Expense Organizer" }} />
       <Stack.Screen name="DynamicDashboard" component={DynamicDashboardScreen} options={{ title: "Custom Dashboard" }} />
-
+      <Stack.Screen name="SummaryScreen" component={SummaryScreen} options={{ title: "Summary" }} />
       {/* NEW SCREENS */}
       <Stack.Screen name="EmployeeOnboarding" component={EmployeeOnboardingScreen} options={{ title: "Employee Onboarding" }} />
       <Stack.Screen name="Timesheet" component={TimesheetScreen} options={{ title: "Timesheet" }} />

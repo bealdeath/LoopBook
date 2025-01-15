@@ -1,74 +1,63 @@
-import React, { useMemo } from "react";
-import { View, Text, SectionList, StyleSheet, TouchableOpacity } from "react-native";
-import { useSelector } from "react-redux";
-import { RootState } from "../redux/rootReducer"; // If you have a typed RootState
-import { useNavigation } from "@react-navigation/native";
-import { Receipt } from "../redux/slices/receiptSlice";
+// File: src/screens/ReceiptOrganizerScreen.tsx (Full Example)
 
-interface SectionData {
-  title: string; // e.g. "2023-09-23"
-  data: Receipt[];
-}
+import React, { useEffect } from "react";
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState, AppDispatch } from "../redux/store";
+import { fetchReceipts, removeReceipt } from "../redux/slices/receiptSlice";
+import { useNavigation } from "@react-navigation/native";
 
 export default function ReceiptOrganizerScreen() {
+  const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
-  const receiptsState = useSelector((state: RootState) => state.receipts);
-  const data = receiptsState?.data || {};
+  const { data: receipts, loading } = useSelector((state: RootState) => state.receipts);
 
-  // Convert from year->month->day structure to a SectionList array
-  const sections: SectionData[] = useMemo(() => {
-    const result: SectionData[] = [];
+  useEffect(() => {
+    dispatch(fetchReceipts()); // load all receipts if not loaded
+  }, []);
 
-    Object.keys(data).forEach((year) => {
-      Object.keys(data[year]).forEach((month) => {
-        Object.keys(data[year][month]).forEach((day) => {
-          const dateKey = `${year}-${month}-${day}`;
-          result.push({
-            title: dateKey,
-            data: data[year][month][day],
-          });
-        });
-      });
-    });
-
-    // Sort by date descending if you want
-    result.sort((a, b) => (a.title < b.title ? 1 : -1));
-
-    return result;
-  }, [data]);
-
-  function handlePress(receipt: Receipt, dateKey: string) {
-    const [yr, mo, dy] = dateKey.split("-");
-    navigation.navigate("ReceiptDetail" as never, {
-      id: receipt.id,
-      year: yr,
-      month: mo,
-      day: dy,
-    } as never);
+  function handleDelete(id: string) {
+    Alert.alert("Confirm", "Are you sure you want to delete this receipt?", [
+      {
+        text: "Yes",
+        onPress: async () => {
+          try {
+            await dispatch(removeReceipt(id)).unwrap();
+            Alert.alert("Deleted", "Receipt removed successfully.");
+          } catch (err) {
+            console.error("Remove error:", err);
+            Alert.alert("Error", "Failed to remove receipt.");
+          }
+        },
+      },
+      { text: "No", style: "cancel" },
+    ]);
   }
+
+  function handleOpenDetail(receiptId: string) {
+    navigation.navigate("ReceiptDetail" as never, { receiptId } as never);
+  }
+
+  const renderItem = ({ item }: { item: any }) => (
+    <View style={styles.itemContainer}>
+      <TouchableOpacity style={{ flex: 1 }} onPress={() => handleOpenDetail(item.id)}>
+        <Text style={styles.merchant}>{item.merchantName}</Text>
+        <Text style={styles.amount}>${item.amount?.toFixed(2)}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
+        <Text style={{ color: "#fff" }}>Delete</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Organized Receipts</Text>
-
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.id}
-        renderSectionHeader={({ section }) => (
-          <View style={styles.headerContainer}>
-            <Text style={styles.headerText}>{section.title}</Text>
-          </View>
-        )}
-        renderItem={({ item, section }) => (
-          <TouchableOpacity
-            style={styles.receiptItem}
-            onPress={() => handlePress(item, section.title)}
-          >
-            <Text style={styles.receiptText}>
-              {item.merchantName} - ${item.amount}
-            </Text>
-          </TouchableOpacity>
-        )}
+      {loading && <Text>Loading...</Text>}
+      <FlatList
+        data={receipts}
+        keyExtractor={(r) => r.id}
+        renderItem={renderItem}
         ListEmptyComponent={<Text>No receipts found.</Text>}
       />
     </View>
@@ -76,15 +65,23 @@ export default function ReceiptOrganizerScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f9f9f9", padding: 20 },
+  container: { flex: 1, backgroundColor: "#fff", padding: 20 },
   title: { fontSize: 24, fontWeight: "bold", marginBottom: 10 },
-  headerContainer: { backgroundColor: "#eee", paddingVertical: 5, paddingHorizontal: 10 },
-  headerText: { fontSize: 16, fontWeight: "600" },
-  receiptItem: {
-    backgroundColor: "#fff",
-    padding: 10,
+  itemContainer: {
+    flexDirection: "row",
+    backgroundColor: "#f1f1f1",
     borderRadius: 8,
-    marginBottom: 5,
+    padding: 10,
+    marginBottom: 8,
+    alignItems: "center",
   },
-  receiptText: { fontSize: 14, color: "#333" },
+  merchant: { fontSize: 16, fontWeight: "600", color: "#333" },
+  amount: { fontSize: 14, color: "#666" },
+  deleteBtn: {
+    backgroundColor: "#dc3545",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 5,
+    marginLeft: 10,
+  },
 });

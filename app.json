@@ -5,11 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "newArchEnabled": true,
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
+    "platforms": ["ios", "android", "web"],
     "plugins": [
       [
         "expo-camera",
@@ -40,13 +36,14 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
-        "android.permission.RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "extra": {
       "GOOGLE_API_KEY": "AIzaSyBlIryh--FiQ79FuXo07ByTIRHs0eL8DTo",
       "FIREBASE_AUTH_DOMAIN": "loopbook-5b036.firebaseapp.com",
       "OPENAI_API_KEY": "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",
+      "GOOGLE_APPLICATION_CREDENTIALS": "./path/to/loopbook-5b036-2a3c54307bb4.json",
       "eas": {
         "projectId": "b204e6c1-3011-4716-a433-dd53b32b50b2"
       }

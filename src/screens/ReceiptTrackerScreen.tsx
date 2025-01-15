@@ -1,6 +1,5 @@
 // File: src/screens/ReceiptTrackerScreen.tsx
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,31 +13,39 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSelector, useDispatch } from "react-redux";
-import { RootState } from "../redux/store";
-import { addReceipt } from "../redux/slices/receiptSlice";
+import { RootState, AppDispatch } from "../redux/store";
+import { createReceipt, fetchReceipts } from "../redux/slices/receiptSlice";
 
 import * as ImagePicker from "expo-image-picker";
-import 'react-native-get-random-values';
 import { v4 as uuidv4 } from "uuid";
 import { OCRService } from "../utils/OCRService";
 import * as FileSystem from "expo-file-system";
 
 export default function ReceiptTrackerScreen() {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
-  const receipts = useSelector((state: RootState) => state.receipts.data);
+  const { data: receipts, loading } = useSelector((state: RootState) => state.receipts);
 
   const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [capturedImageUri, setCapturedImageUri] = useState<string | null>(null);
+  const [category, setCategory] = useState<string>("");
+
+  useEffect(() => {
+    // Fetch receipts from Firestore on mount
+    dispatch(fetchReceipts());
+  }, []);
 
   function handleAddNewReceipt() {
     setCapturedImageUri(null);
+    setCategory("");
     setIsCategoryModalVisible(true);
   }
 
   function handleCategorySelection(cat: string) {
     setIsCategoryModalVisible(false);
+    setCategory(cat);
+    // Next prompt: camera or gallery
     Alert.alert("Choose an Option", "", [
       { text: "Take a Picture", onPress: () => handleCameraCapture(cat) },
       { text: "Select from Gallery", onPress: () => handleImageSelection(cat) },
@@ -50,11 +57,11 @@ export default function ReceiptTrackerScreen() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission Denied", "Camera permissions are required.");
+        Alert.alert("Permission Denied", "Camera permission required.");
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ["images"],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 1,
       });
@@ -75,11 +82,11 @@ export default function ReceiptTrackerScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission Denied", "Gallery permissions are required.");
+        Alert.alert("Permission Denied", "Gallery permission required.");
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 1,
       });
@@ -104,6 +111,7 @@ export default function ReceiptTrackerScreen() {
       await FileSystem.moveAsync({ from: uri, to: newUri });
       return newUri;
     } catch (error) {
+      console.warn("Failed to persist image:", error);
       return uri;
     }
   }
@@ -113,16 +121,17 @@ export default function ReceiptTrackerScreen() {
       Alert.alert("Error", "No category selected.");
       return;
     }
-    setIsLoading(true);
+    setIsProcessing(true);
     try {
+      // Use your existing OCR
       const text = await OCRService.extractText(imageUri);
       const details = OCRService.categorizeAndExtractDetails(text);
 
       const uploadDate = new Date().toISOString();
 
-      dispatch(
-        addReceipt({
-          id: uuidv4(),
+      // Save to Firestore
+      await dispatch(
+        createReceipt({
           imageUri,
           category: cat,
           amount: details.total,
@@ -131,16 +140,19 @@ export default function ReceiptTrackerScreen() {
           purchaseDate: details.purchaseDate,
           paymentMethod: details.paymentMethod,
           last4: details.last4,
+          returns: 0,
+          netTotal: details.total,
         })
-      );
+      ).unwrap();
     } catch (error) {
+      console.error("scanReceipt error:", error);
       Alert.alert("Error", "Failed to scan receipt.");
     } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
     }
   }
 
-  function renderReceiptItem({ item }: any) {
+  function renderReceiptItem({ item }: { item: any }) {
     return (
       <TouchableOpacity
         style={styles.transactionItem}
@@ -151,7 +163,7 @@ export default function ReceiptTrackerScreen() {
         <Text style={styles.transactionCategory}>
           {item.category} - {item.merchantName}
         </Text>
-        <Text style={styles.transactionAmount}>${item.amount}</Text>
+        <Text style={styles.transactionAmount}>${item.amount?.toFixed(2)}</Text>
       </TouchableOpacity>
     );
   }
@@ -174,7 +186,7 @@ export default function ReceiptTrackerScreen() {
         <Image source={{ uri: capturedImageUri }} style={styles.receiptImage} />
       )}
 
-      {isLoading && <ActivityIndicator size="large" color="#007bff" />}
+      {(loading || isProcessing) && <ActivityIndicator size="large" color="#007bff" />}
 
       <FlatList
         data={receipts}
