@@ -29,47 +29,63 @@ export default function ReceiptTrackerScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedImageUri, setCapturedImageUri] = useState<string | null>(null);
 
+  // Fetch existing receipts from Firestore on mount
   useEffect(() => {
     dispatch(fetchReceipts());
   }, [dispatch]);
 
+  /**
+   * 1) Take a photo with camera
+   */
   async function handleCamera() {
     try {
+      // Request camera permission
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("Permission Denied", "Camera permission required.");
         return;
       }
+
+      // Launch camera
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images, // revert to fix camera error
         allowsEditing: true,
         quality: 1,
       });
+
       if (!result.canceled && result.assets?.length) {
         let uri = result.assets[0].uri;
-        uri = await persistImage(uri);
+        uri = await persistImage(uri); // store locally
         setCapturedImageUri(uri);
         await processAdvancedReceipt(uri);
       } else {
         Alert.alert("No Picture Taken", "Please take a picture.");
       }
     } catch (error) {
+      console.error("handleCamera error:", error);
       Alert.alert("Error", "Camera failed.");
     }
   }
 
+  /**
+   * 2) Pick from gallery
+   */
   async function handleGallery() {
     try {
+      // Request gallery permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("Permission Denied", "Gallery permission required.");
         return;
       }
+
+      // Launch image library
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 1,
       });
+
       if (!result.canceled && result.assets?.length) {
         let uri = result.assets[0].uri;
         uri = await persistImage(uri);
@@ -79,10 +95,14 @@ export default function ReceiptTrackerScreen() {
         Alert.alert("No Image Selected", "Please select an image.");
       }
     } catch (error) {
+      console.error("handleGallery error:", error);
       Alert.alert("Error", "Selecting image failed.");
     }
   }
 
+  /**
+   * Moves the image to a receipts/ folder for persistence
+   */
   async function persistImage(uri: string): Promise<string> {
     try {
       const dir = FileSystem.documentDirectory + "receipts/";
@@ -92,14 +112,13 @@ export default function ReceiptTrackerScreen() {
       return newUri;
     } catch (error) {
       console.warn("Failed to persist image:", error);
-      return uri;
+      return uri; // fallback
     }
   }
 
   /**
-   * Process advanced receipt (calls our Cloud Function).
-   * If you suspect the Cloud Function isn't returning enough data,
-   * try logging the "rawText" that you get from `AdvancedOCRService.extractExpenseData`.
+   * 3) Call AdvancedOCRService => Cloud Function => set fields
+   *    No lineItems. Include date, taxes, total, vendorName, paymentMethod, last4, etc.
    */
   async function processAdvancedReceipt(imageUri: string) {
     setIsProcessing(true);
@@ -108,32 +127,28 @@ export default function ReceiptTrackerScreen() {
         vendorName,
         totalAmount,
         taxes,
-        lineItems,
-        category,
+        purchaseDate,
         paymentMethod,
         last4,
-        purchaseDate,
-        purchaseDateISO,
       } = await AdvancedOCRService.extractExpenseData(imageUri);
 
-      const safePurchaseDateISO = purchaseDateISO ?? null;
-
+      // Create a new doc in Firestore
       await dispatch(
         createReceipt({
           imageUri,
-          category: category || "Other",
-          amount: totalAmount || 0,
-          merchantName: vendorName || "Unknown",
-          purchaseDate: purchaseDate || "Unknown",
-          purchaseDateISO: safePurchaseDateISO,
-          paymentMethod: paymentMethod || "Unknown",
-          last4: last4 || "0000",
-          hst: taxes || 0,
+          category: "Other", // or auto-detect if you want
+          amount: totalAmount,
+          merchantName: vendorName,
+          purchaseDate: purchaseDate,
+          purchaseDateISO: null, // optional
+          paymentMethod: paymentMethod,
+          last4: last4,
+          hst: taxes,
           gst: 0,
           uploadDate: new Date().toISOString(),
           returns: 0,
-          netTotal: totalAmount || 0,
-          lineItems,
+          netTotal: totalAmount,
+          // no lineItems
         } as any)
       ).unwrap();
     } catch (error) {
@@ -144,6 +159,9 @@ export default function ReceiptTrackerScreen() {
     }
   }
 
+  /**
+   * Render each receipt in the FlatList
+   */
   function renderReceiptItem({ item }: { item: any }) {
     return (
       <TouchableOpacity
@@ -254,3 +272,4 @@ const styles = StyleSheet.create({
   transactionAmount: { fontSize: 16, fontWeight: "bold", color: "#333" },
   noDataText: { fontSize: 16, textAlign: "center", color: "#888", marginTop: 50 },
 });
+
