@@ -1,4 +1,5 @@
 // File: src/screens/ReceiptTrackerScreen.tsx
+
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -6,7 +7,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   FlatList,
-  Modal,
   Alert,
   ActivityIndicator,
   Image,
@@ -17,43 +17,23 @@ import { RootState, AppDispatch } from "../redux/store";
 import { createReceipt, fetchReceipts } from "../redux/slices/receiptSlice";
 
 import * as ImagePicker from "expo-image-picker";
-import { v4 as uuidv4 } from "uuid";
-import { OCRService } from "../utils/OCRService";
 import * as FileSystem from "expo-file-system";
+import { AdvancedOCRService } from "../utils/AdvancedOCRService";
 
 export default function ReceiptTrackerScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
+
   const { data: receipts, loading } = useSelector((state: RootState) => state.receipts);
 
-  const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedImageUri, setCapturedImageUri] = useState<string | null>(null);
-  const [category, setCategory] = useState<string>("");
 
   useEffect(() => {
-    // Fetch receipts from Firestore on mount
     dispatch(fetchReceipts());
-  }, []);
+  }, [dispatch]);
 
-  function handleAddNewReceipt() {
-    setCapturedImageUri(null);
-    setCategory("");
-    setIsCategoryModalVisible(true);
-  }
-
-  function handleCategorySelection(cat: string) {
-    setIsCategoryModalVisible(false);
-    setCategory(cat);
-    // Next prompt: camera or gallery
-    Alert.alert("Choose an Option", "", [
-      { text: "Take a Picture", onPress: () => handleCameraCapture(cat) },
-      { text: "Select from Gallery", onPress: () => handleImageSelection(cat) },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  }
-
-  async function handleCameraCapture(cat: string) {
+  async function handleCamera() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
@@ -69,7 +49,7 @@ export default function ReceiptTrackerScreen() {
         let uri = result.assets[0].uri;
         uri = await persistImage(uri);
         setCapturedImageUri(uri);
-        await scanReceipt(uri, cat);
+        await processAdvancedReceipt(uri);
       } else {
         Alert.alert("No Picture Taken", "Please take a picture.");
       }
@@ -78,7 +58,7 @@ export default function ReceiptTrackerScreen() {
     }
   }
 
-  async function handleImageSelection(cat: string) {
+  async function handleGallery() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
@@ -94,7 +74,7 @@ export default function ReceiptTrackerScreen() {
         let uri = result.assets[0].uri;
         uri = await persistImage(uri);
         setCapturedImageUri(uri);
-        await scanReceipt(uri, cat);
+        await processAdvancedReceipt(uri);
       } else {
         Alert.alert("No Image Selected", "Please select an image.");
       }
@@ -116,37 +96,49 @@ export default function ReceiptTrackerScreen() {
     }
   }
 
-  async function scanReceipt(imageUri: string, cat: string) {
-    if (!cat) {
-      Alert.alert("Error", "No category selected.");
-      return;
-    }
+  /**
+   * Process advanced receipt (calls our Cloud Function).
+   * If you suspect the Cloud Function isn't returning enough data,
+   * try logging the "rawText" that you get from `AdvancedOCRService.extractExpenseData`.
+   */
+  async function processAdvancedReceipt(imageUri: string) {
     setIsProcessing(true);
     try {
-      // Use your existing OCR
-      const text = await OCRService.extractText(imageUri);
-      const details = OCRService.categorizeAndExtractDetails(text);
+      const {
+        vendorName,
+        totalAmount,
+        taxes,
+        lineItems,
+        category,
+        paymentMethod,
+        last4,
+        purchaseDate,
+        purchaseDateISO,
+      } = await AdvancedOCRService.extractExpenseData(imageUri);
 
-      const uploadDate = new Date().toISOString();
+      const safePurchaseDateISO = purchaseDateISO ?? null;
 
-      // Save to Firestore
       await dispatch(
         createReceipt({
           imageUri,
-          category: cat,
-          amount: details.total,
-          uploadDate,
-          merchantName: details.merchantName,
-          purchaseDate: details.purchaseDate,
-          paymentMethod: details.paymentMethod,
-          last4: details.last4,
+          category: category || "Other",
+          amount: totalAmount || 0,
+          merchantName: vendorName || "Unknown",
+          purchaseDate: purchaseDate || "Unknown",
+          purchaseDateISO: safePurchaseDateISO,
+          paymentMethod: paymentMethod || "Unknown",
+          last4: last4 || "0000",
+          hst: taxes || 0,
+          gst: 0,
+          uploadDate: new Date().toISOString(),
           returns: 0,
-          netTotal: details.total,
-        })
+          netTotal: totalAmount || 0,
+          lineItems,
+        } as any)
       ).unwrap();
     } catch (error) {
-      console.error("scanReceipt error:", error);
-      Alert.alert("Error", "Failed to scan receipt.");
+      console.error("processAdvancedReceipt error:", error);
+      Alert.alert("Error", "Failed to parse advanced receipt.");
     } finally {
       setIsProcessing(false);
     }
@@ -171,15 +163,29 @@ export default function ReceiptTrackerScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.headerText}>Receipt Tracker</Text>
-      <TouchableOpacity style={styles.addButton} onPress={handleAddNewReceipt}>
-        <Text style={styles.addButtonText}>+ Add Receipt</Text>
-      </TouchableOpacity>
+
+      <View style={styles.buttonRow}>
+        <TouchableOpacity style={styles.addButton} onPress={handleCamera}>
+          <Text style={styles.addButtonText}>Take Photo</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.addButton} onPress={handleGallery}>
+          <Text style={styles.addButtonText}>Gallery</Text>
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity
         style={styles.organizerButton}
         onPress={() => navigation.navigate("ReceiptOrganizer" as never)}
       >
         <Text style={styles.organizerButtonText}>View Organized Receipts</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.organizerButton, { backgroundColor: "#ff9800" }]}
+        onPress={() => navigation.navigate("SummaryScreen" as never)}
+      >
+        <Text style={styles.organizerButtonText}>View Summary</Text>
       </TouchableOpacity>
 
       {capturedImageUri && (
@@ -194,34 +200,6 @@ export default function ReceiptTrackerScreen() {
         renderItem={renderReceiptItem}
         ListEmptyComponent={<Text style={styles.noDataText}>No Receipts Yet</Text>}
       />
-
-      <Modal
-        visible={isCategoryModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsCategoryModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select a Category</Text>
-            {["Food", "Travel", "Shopping", "Other"].map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={styles.categoryButton}
-                onPress={() => handleCategorySelection(cat)}
-              >
-                <Text style={styles.categoryText}>{cat}</Text>
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setIsCategoryModalVisible(false)}
-            >
-              <Text style={styles.closeButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -235,16 +213,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 20,
   },
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+    marginBottom: 20,
+  },
   addButton: {
     backgroundColor: "#007bff",
     borderRadius: 20,
     padding: 10,
     alignItems: "center",
-    width: 140,
-    alignSelf: "center",
-    marginBottom: 20,
+    width: 130,
   },
-  addButtonText: { color: "#fff", fontSize: 16 },
+  addButtonText: { color: "#fff", fontSize: 14, textAlign: "center" },
   organizerButton: {
     backgroundColor: "#28a745",
     borderRadius: 20,
@@ -252,7 +233,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: 200,
     alignSelf: "center",
-    marginBottom: 20,
+    marginBottom: 10,
   },
   organizerButtonText: { color: "#fff", fontSize: 16 },
   receiptImage: {
@@ -272,30 +253,4 @@ const styles = StyleSheet.create({
   transactionCategory: { fontSize: 16, color: "#333" },
   transactionAmount: { fontSize: 16, fontWeight: "bold", color: "#333" },
   noDataText: { fontSize: 16, textAlign: "center", color: "#888", marginTop: 50 },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: { backgroundColor: "#fff", padding: 20, borderRadius: 10, width: "80%" },
-  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
-  categoryButton: {
-    backgroundColor: "#007bff",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    width: "100%",
-    alignItems: "center",
-  },
-  categoryText: { color: "#fff", fontSize: 16 },
-  closeButton: {
-    marginTop: 20,
-    backgroundColor: "#f00",
-    padding: 10,
-    borderRadius: 10,
-    width: "100%",
-    alignItems: "center",
-  },
-  closeButtonText: { color: "#fff", fontSize: 16 },
 });

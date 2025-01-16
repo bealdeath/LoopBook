@@ -1,7 +1,6 @@
-// File: src/screens/ReceiptOrganizerScreen.tsx (Full Example)
-
+// File: src/screens/ReceiptOrganizerScreen.tsx
 import React, { useEffect } from "react";
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Image } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "../redux/store";
 import { fetchReceipts, removeReceipt } from "../redux/slices/receiptSlice";
@@ -13,8 +12,8 @@ export default function ReceiptOrganizerScreen() {
   const { data: receipts, loading } = useSelector((state: RootState) => state.receipts);
 
   useEffect(() => {
-    dispatch(fetchReceipts()); // load all receipts if not loaded
-  }, []);
+    dispatch(fetchReceipts());
+  }, [dispatch]);
 
   function handleDelete(id: string) {
     Alert.alert("Confirm", "Are you sure you want to delete this receipt?", [
@@ -40,6 +39,8 @@ export default function ReceiptOrganizerScreen() {
 
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.itemContainer}>
+      {/* If you want to display photo in the list: */}
+      <Image source={{ uri: item.imageUri }} style={styles.thumbnail} />
       <TouchableOpacity style={{ flex: 1 }} onPress={() => handleOpenDetail(item.id)}>
         <Text style={styles.merchant}>{item.merchantName}</Text>
         <Text style={styles.amount}>${item.amount?.toFixed(2)}</Text>
@@ -74,6 +75,12 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 8,
     alignItems: "center",
+  },
+  thumbnail: {
+    width: 50,
+    height: 50,
+    borderRadius: 4,
+    marginRight: 10,
   },
   merchant: { fontSize: 16, fontWeight: "600", color: "#333" },
   amount: { fontSize: 14, color: "#666" },
