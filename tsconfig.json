@@ -1,6 +1,27 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
-  }
+    "strict": true,
+    "module": "commonjs",
+    "target": "ES2017",
+    "outDir": "lib",
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+
+    // IMPORTANT: skip type checks on node_modules
+    "skipLibCheck": true,
+
+    "forceConsistentCasingInFileNames": true
+  },
+  // We'll only compile these two files for the function:
+  "include": ["index.ts", "parseReceipt.ts"],
+
+  // Exclude your React Native app + node_modules from compilation
+  "exclude": [
+    "node_modules",
+    "src",   // your RN code
+    "assets",
+    "dist"
+  ]
 }

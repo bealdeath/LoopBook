@@ -7,7 +7,8 @@ import rootReducer from "./rootReducer";
 const persistConfig = {
   key: "root",
   storage: AsyncStorage,
-  whitelist: ["receipts", "inventory", "employee", "sales"],
+  // Whitelist slices you want to persist
+  whitelist: ["settings", "receipts", "inventory", "employee", "sales"],
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -16,11 +17,12 @@ export const store = configureStore({
   reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      serializableCheck: false, // Disable the non-serializable check
+      serializableCheck: false,
     }),
 });
 
 export const persistor = persistStore(store);
 
+// Infer types from store
 export type AppDispatch = typeof store.dispatch;
-
+export type RootState = ReturnType<typeof store.getState>;

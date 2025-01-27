@@ -11,28 +11,28 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 
-export interface LineItem {
-  description: string;
-  quantity: number;
-  price: number;
-}
-
 export interface Receipt {
   id: string;
   imageUri: string;
-  category: string;       // e.g. "Food", "Travel", "Shopping", or "Other"
-  amount: number;         // total spent
-  uploadDate: string;     // ISO date of when it was uploaded
-  merchantName: string;   // "IKEA", "Starbucks", etc.
-  purchaseDate: string;   // e.g. "Jan 15, 2025"
-  purchaseDateISO?: string;  // e.g. "2025-01-15T00:00:00.000Z"
-  paymentMethod: string;  // e.g. "Visa", "Mastercard", "Cash"
-  last4: string;          // last 4 digits of the card
-  hst?: number;           // HST portion
-  gst?: number;           // optional if you want to store GST separately
-  returns?: number;       // optional if you want to track returns
-  netTotal?: number;      // optional net total after returns/taxes
-  lineItems?: LineItem[];
+  category: string;
+  amount: number;
+  uploadDate: string;
+  merchantName: string;
+  purchaseDate: string;
+  purchaseDateISO?: string;
+  paymentMethod: string; // we might store cardBrand here
+  last4: string;
+  hst?: number;
+  gst?: number;
+  returns?: number;
+  netTotal?: number;
+
+  // Our new fields
+  cardBrand?: string; // same as paymentMethod or separate
+  docAiTotal?: number;
+  tip?: number;
+  grandTotal?: number;
+  // in case we do line items, etc.
 }
 
 interface ReceiptState {
@@ -46,9 +46,7 @@ const initialState: ReceiptState = {
   loading: false,
 };
 
-/**
- * CREATE a single receipt doc in Firestore
- */
+// CREATE
 export const createReceipt = createAsyncThunk(
   "receipts/createReceipt",
   async (receipt: Omit<Receipt, "id">) => {
@@ -58,9 +56,7 @@ export const createReceipt = createAsyncThunk(
   }
 );
 
-/**
- * READ all receipts from Firestore
- */
+// READ
 export const fetchReceipts = createAsyncThunk("receipts/fetchReceipts", async () => {
   const colRef = collection(db, "receipts");
   const snap = await getDocs(colRef);
@@ -71,9 +67,7 @@ export const fetchReceipts = createAsyncThunk("receipts/fetchReceipts", async ()
   return receipts;
 });
 
-/**
- * UPDATE a given receipt by ID
- */
+// UPDATE
 export const updateReceipt = createAsyncThunk(
   "receipts/updateReceipt",
   async ({ id, changes }: { id: string; changes: Partial<Receipt> }) => {
@@ -83,9 +77,7 @@ export const updateReceipt = createAsyncThunk(
   }
 );
 
-/**
- * DELETE a given receipt by ID
- */
+// DELETE
 export const removeReceipt = createAsyncThunk(
   "receipts/removeReceipt",
   async (id: string) => {

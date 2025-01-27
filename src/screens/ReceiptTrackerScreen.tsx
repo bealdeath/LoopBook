@@ -1,5 +1,4 @@
 // File: src/screens/ReceiptTrackerScreen.tsx
-
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -15,16 +14,20 @@ import { useNavigation } from "@react-navigation/native";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "../redux/store";
 import { createReceipt, fetchReceipts } from "../redux/slices/receiptSlice";
+import axios from "axios";
+import { createLedgerTransaction } from "../redux/slices/ledgerSlice";
 
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
-import { AdvancedOCRService } from "../utils/AdvancedOCRService";
+
 
 export default function ReceiptTrackerScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
 
-  const { data: receipts, loading } = useSelector((state: RootState) => state.receipts);
+  const { data: receipts, loading } = useSelector(
+    (state: RootState) => state.receipts
+  );
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedImageUri, setCapturedImageUri] = useState<string | null>(null);
@@ -35,27 +38,33 @@ export default function ReceiptTrackerScreen() {
   }, [dispatch]);
 
   /**
-   * 1) Take a photo with camera
+   * Call your Cloud Function
    */
+  async function callParseReceipt(base64Image: string) {
+    const response = await axios.post(
+      "https://us-central1-loopbook-5b036.cloudfunctions.net/parseReceiptHandler",
+      { base64Image }
+    );
+    console.log("Parsed Receipt:", response.data);
+    return response.data;
+  }
+
   async function handleCamera() {
     try {
-      // Request camera permission
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("Permission Denied", "Camera permission required.");
         return;
       }
-
-      // Launch camera
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images, // revert to fix camera error
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 1,
       });
 
       if (!result.canceled && result.assets?.length) {
         let uri = result.assets[0].uri;
-        uri = await persistImage(uri); // store locally
+        uri = await persistImage(uri);
         setCapturedImageUri(uri);
         await processAdvancedReceipt(uri);
       } else {
@@ -67,19 +76,13 @@ export default function ReceiptTrackerScreen() {
     }
   }
 
-  /**
-   * 2) Pick from gallery
-   */
   async function handleGallery() {
     try {
-      // Request gallery permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("Permission Denied", "Gallery permission required.");
         return;
       }
-
-      // Launch image library
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -101,7 +104,7 @@ export default function ReceiptTrackerScreen() {
   }
 
   /**
-   * Moves the image to a receipts/ folder for persistence
+   * Save the image to a local folder
    */
   async function persistImage(uri: string): Promise<string> {
     try {
@@ -112,68 +115,114 @@ export default function ReceiptTrackerScreen() {
       return newUri;
     } catch (error) {
       console.warn("Failed to persist image:", error);
-      return uri; // fallback
+      return uri;
     }
   }
 
   /**
-   * 3) Call AdvancedOCRService => Cloud Function => set fields
-   *    No lineItems. Include date, taxes, total, vendorName, paymentMethod, last4, etc.
+   * Process the image with doc.ai + fallback
    */
   async function processAdvancedReceipt(imageUri: string) {
     setIsProcessing(true);
     try {
-      const {
-        vendorName,
-        totalAmount,
-        taxes,
-        purchaseDate,
-        paymentMethod,
-        last4,
-      } = await AdvancedOCRService.extractExpenseData(imageUri);
+      const base64Image = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
 
-      // Create a new doc in Firestore
+      const {
+        vendorName = "Unknown",
+        purchaseDate = "Unknown",
+        last4 = "0000",
+        totalAmount = 0,
+        taxes = 0,
+        docAiTotal = 0,
+        category = "Other",
+        grandTotal = totalAmount,
+        tip = 0,
+        cardBrand = "Unknown",
+      } = await callParseReceipt(base64Image);
+   const dateIso = new Date().toISOString().slice(0, 10);
+   const debitAmount = totalAmount + taxes;
+   await dispatch(
+     createLedgerTransaction({
+       date: dateIso,
+       memo: `Receipt scanned: ${vendorName}`,
+       lines: [
+         { accountId: "defaultExpenseId", debit: debitAmount, credit: 0 },
+         { accountId: "defaultPaymentId", debit: 0, credit: debitAmount },
+       ],
+     })
+   ).unwrap();
+      // Save to Firestore
       await dispatch(
         createReceipt({
           imageUri,
-          category: "Other", // or auto-detect if you want
+          category,
           amount: totalAmount,
           merchantName: vendorName,
-          purchaseDate: purchaseDate,
-          purchaseDateISO: null, // optional
-          paymentMethod: paymentMethod,
-          last4: last4,
+          purchaseDate,
+          purchaseDateISO: null,
+          paymentMethod: cardBrand,
+          last4,
           hst: taxes,
           gst: 0,
           uploadDate: new Date().toISOString(),
           returns: 0,
           netTotal: totalAmount,
-          // no lineItems
+          cardBrand,
+          docAiTotal,
+          tip,
+          grandTotal,
         } as any)
       ).unwrap();
+
+      // REMOVED auto-create ledger transaction code
+      // if you want to re-introduce later, do so after verifying no black screen
     } catch (error) {
       console.error("processAdvancedReceipt error:", error);
-      Alert.alert("Error", "Failed to parse advanced receipt.");
+      Alert.alert("Error", "Failed to process the receipt.");
     } finally {
       setIsProcessing(false);
     }
   }
 
-  /**
-   * Render each receipt in the FlatList
-   */
   function renderReceiptItem({ item }: { item: any }) {
     return (
       <TouchableOpacity
         style={styles.transactionItem}
         onPress={() =>
-          navigation.navigate("ReceiptDetail" as never, { receiptId: item.id } as never)
+          navigation.navigate("ReceiptDetail" as never, {
+            receiptId: item.id,
+          } as never)
         }
       >
-        <Text style={styles.transactionCategory}>
-          {item.category} - {item.merchantName}
-        </Text>
-        <Text style={styles.transactionAmount}>${item.amount?.toFixed(2)}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.transactionCategory}>
+            {item.merchantName} ({item.category})
+          </Text>
+          <Text style={{ fontSize: 14, color: "#666" }}>
+            Date: {item.purchaseDate}
+          </Text>
+          <Text style={{ fontSize: 14, color: "#666" }}>
+            Card: {item.paymentMethod} {item.last4}
+          </Text>
+        </View>
+
+        <View style={{ alignItems: "flex-end" }}>
+          <Text style={styles.transactionAmount}>
+            Base: ${item.amount?.toFixed(2)}
+          </Text>
+          {item.tip > 0 && (
+            <Text style={styles.transactionAmount}>
+              Tip: ${item.tip?.toFixed(2)}
+            </Text>
+          )}
+          {item.grandTotal > 0 && item.grandTotal !== item.amount && (
+            <Text style={styles.transactionAmount}>
+              Total: ${item.grandTotal?.toFixed(2)}
+            </Text>
+          )}
+        </View>
       </TouchableOpacity>
     );
   }
@@ -210,13 +259,17 @@ export default function ReceiptTrackerScreen() {
         <Image source={{ uri: capturedImageUri }} style={styles.receiptImage} />
       )}
 
-      {(loading || isProcessing) && <ActivityIndicator size="large" color="#007bff" />}
+      {(loading || isProcessing) && (
+        <ActivityIndicator size="large" color="#007bff" />
+      )}
 
       <FlatList
         data={receipts}
         keyExtractor={(item) => item.id}
         renderItem={renderReceiptItem}
-        ListEmptyComponent={<Text style={styles.noDataText}>No Receipts Yet</Text>}
+        ListEmptyComponent={
+          <Text style={styles.noDataText}>No Receipts Yet</Text>
+        }
       />
     </View>
   );
@@ -268,8 +321,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
   },
-  transactionCategory: { fontSize: 16, color: "#333" },
+  transactionCategory: { fontSize: 16, color: "#333", fontWeight: "600" },
   transactionAmount: { fontSize: 16, fontWeight: "bold", color: "#333" },
   noDataText: { fontSize: 16, textAlign: "center", color: "#888", marginTop: 50 },
 });
-

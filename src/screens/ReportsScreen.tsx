@@ -2,16 +2,13 @@
 import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useSelector } from "react-redux";
-import { RootState } from "../redux/rootReducer"; // import your root state type
+// Import your RootState from the same place as store
+import { RootState } from "../redux/store";
 
 export default function ReportsScreen() {
   // Access the receipt slice
   const receiptsState = useSelector((state: RootState) => state.receipts);
-  const receipts = receiptsState.data || []; // data is an array
-
-  // If you have an expense slice named "expenses", do similarly
-  // const expensesState = useSelector((state: RootState) => state.expenses);
-  // const expenses = expensesState?.data || [];
+  const receipts = receiptsState.data || [];
 
   const totalReceipts = useMemo(() => {
     return receipts.reduce((acc, r) => acc + (r.amount || 0), 0);
@@ -20,8 +17,11 @@ export default function ReportsScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Financial Reports</Text>
+
       <View style={styles.card}>
-        <Text>Total Receipts: ${totalReceipts.toFixed(2)}</Text>
+        <Text style={styles.cardText}>
+          Total Receipts: ${totalReceipts.toFixed(2)}
+        </Text>
       </View>
     </View>
   );
@@ -35,5 +35,9 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     elevation: 2,
+  },
+  cardText: {
+    fontSize: 18,
+    color: "#333",
   },
 });

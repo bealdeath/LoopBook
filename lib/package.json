@@ -1,0 +1,8 @@
+{
+  "name": "loopbook-function",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@google-cloud/documentai": "^8.12.0"
+  }
+}

@@ -1,20 +1,22 @@
 // File: src/redux/rootReducer.ts
-import { combineReducers } from "@reduxjs/toolkit";
 
-// Slices
+import { combineReducers } from "@reduxjs/toolkit";
 import receiptReducer from "./slices/receiptSlice";
 import inventoryReducer from "./slices/inventorySlice";
 import employeeReducer from "./slices/employeeSlice";
 import salesReducer from "./slices/salesSlice";
-// plus any others you have
+import settingsReducer from "./slices/settingsSlice";
+// 1) Re-add ledger import
+import ledgerReducer from "./slices/ledgerSlice";
 
 const rootReducer = combineReducers({
-  // The key must match how your UI references these slices
-  receipts: receiptReducer,  // state.receipts.data
-  inventory: inventoryReducer, // state.inventory.items
-  employee: employeeReducer, // state.employee.employees
-  sales: salesReducer, // state.sales.salesOrders
-  // etc.
+  receipts: receiptReducer,
+  inventory: inventoryReducer,
+  employee: employeeReducer,
+  sales: salesReducer,
+  settings: settingsReducer,
+  // 2) Re-enable ledger
+  ledger: ledgerReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

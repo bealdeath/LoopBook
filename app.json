@@ -4,7 +4,8 @@
     "slug": "LoopBook",
     "version": "1.0.0",
     "orientation": "portrait",
-    "newArchEnabled": true,
+    "newArchEnabled": false, // turn off new architecture
+    // "jsEngine": "jsc", // you can add or remove if you want to revert to JSC
     "platforms": ["ios", "android", "web"],
     "plugins": [
       [
@@ -28,7 +29,8 @@
         "NSLocationWhenInUseUsageDescription": "We need location to track mileage when the app is open.",
         "NSCameraUsageDescription": "This app requires camera access to scan receipts.",
         "NSPhotoLibraryUsageDescription": "This app requires photo library access to pick images."
-      }
+      },
+      "bundleIdentifier": "com.beal.LoopBook"
     },
     "android": {
       "permissions": [

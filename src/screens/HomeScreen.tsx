@@ -3,13 +3,12 @@ import React from "react";
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from "react-native";
 import { FAB } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
+import { useSelector } from "react-redux";
+import { RootState } from "../redux/store"; // Adjust path if needed
 import { startPeriodicTracking, stopPeriodicTracking } from "../utils/locationService";
 
-/**
- * We keep your existing "FEATURES" array, plus add "Spending Summary" 
- * so the user can tap to see the summary screen.
- */
-const FEATURES = [
+// Your base features
+const baseFeatures = [
   { name: "Invoice", action: "InvoiceScreen" },
   { name: "Reports", action: "ReportsScreen" },
   { name: "AI Insights", action: "AiInsightsScreen" },
@@ -20,22 +19,24 @@ const FEATURES = [
   { name: "Inventory", action: "Inventory" },
   { name: "Purchase Orders", action: "PurchaseOrder" },
   { name: "Sales", action: "Sales" },
-  // New addition for the summary approach:
   { name: "Spending Summary", action: "SummaryScreen" },
+  { name: "Ledger", action: "LedgerScreen" },
 ];
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  // Access showLedger from settingsSlice
+  const showLedger = useSelector((state: RootState) => state.settings.showLedger);
 
-  /**
-   * If user taps a feature in the grid, we navigate to the screen 
-   * with the matching `action` string.
-   */
+  // If showLedger is true, add "Ledger" tile
+  const FEATURES = showLedger
+    ? [...baseFeatures, { name: "Ledger", action: "LedgerScreen" }]
+    : baseFeatures;
+
   function handleFeaturePress(action: string) {
     navigation.navigate(action as never);
   }
 
-  // You had an existing FAB to start/stop distance tracking.
   function handleFabPress() {
     startPeriodicTracking();
     console.log("Periodic tracking started.");
@@ -50,7 +51,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>LoopBook Home</Text>
 
-      {/* A grid of features (2 columns) */}
+      {/* Render features in a 2-column grid */}
       <FlatList
         data={FEATURES}
         keyExtractor={(item) => item.name}
@@ -66,7 +67,7 @@ export default function HomeScreen() {
         )}
       />
 
-      {/* FAB for periodic location tracking */}
+      {/* FAB for starting/stopping distance tracking */}
       <FAB
         icon="car"
         label="Start Tracking"
@@ -82,14 +83,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#f0f6ff", // Light professional blue background
+    backgroundColor: "#f0f6ff",
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 30,
     textAlign: "center",
-    color: "#003366", // dark navy text
+    color: "#003366",
   },
   row: {
     justifyContent: "space-between",
